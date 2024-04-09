@@ -1,2 +1,7 @@
 # enviroment vars
 .env
+
+# pycharm
+/backend/ai_server/.idea
+/backend/ai_server/.venv
+/backend/ai_server/__pycache__
