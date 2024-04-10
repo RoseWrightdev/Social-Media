@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -18,7 +17,7 @@ type serverPortAndHealth struct {
 
 type pyData struct {
 	Port   string `json:"Port"`
-	Status int    `json:"Ptatus"`
+	Status int    `json:"Status"`
 }
 
 var health = []serverPortAndHealth{
@@ -56,7 +55,6 @@ func getPyServerTest(c *gin.Context) {
 func main() {
 	router := gin.Default()
 
-	//cors
 	CORSMiddleware := func() gin.HandlerFunc {
 		return cors.New(cors.Config{
 			AllowOrigins: []string{"http://localhost:3000", "http://localhost:8000"},
@@ -68,6 +66,5 @@ func main() {
 	router.Use(CORSMiddleware())
 	router.GET("/test", getServerTest)
 	router.GET("/pyTest", getPyServerTest)
-
 	router.Run(port)
 }
