@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'; 
 export default function Home() {
-  const [dataGoServer, setDataGoServer] = useState<any>({Port: "", Status: ""}); 
-  const [dataPyServer, setDataPyServer] = useState<any>(null);
+  const [dataGoServer, setDataGoServer] = useState<any>([{Port: "", Status: ""}]); 
+  const [dataPyServer, setDataPyServer] = useState<any>({Port: "", Status: ""});
+  const [dataServer, setDataServer] = useState<any>({Port: "", Status: ""}); 
+
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -34,6 +36,19 @@ export default function Home() {
     };
 
     fetchDataPyServer();
+
+     const fetchDataServer = async () => {
+      try {
+        const response3 = await fetch('http://localhost:8000/test');
+        const jsonDataServer = await response3.json();
+        console.log(jsonDataServer)
+        setDataServer(jsonDataServer);
+      } catch (error) {
+        console.error('Error fetching dataGoServer:', error);
+      }
+    };
+
+    fetchDataServer();
   }, []);
 
   return (
@@ -45,9 +60,11 @@ export default function Home() {
       )}
       {isLoading && <p>Loading...</p>} Display loading indicator */}
 
-      {JSON.stringify(dataGoServer)}
+      {JSON.stringify(dataGoServer[0])}
+      <br/>
       {JSON.stringify(dataPyServer)}
-
+      <br/>
+      {JSON.stringify(dataServer)}
     </>
   );
 }

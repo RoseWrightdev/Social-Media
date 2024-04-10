@@ -9,6 +9,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:3000",
+    "http://localhost:8080",
 ]
 
 app.add_middleware(
@@ -21,9 +22,17 @@ app.add_middleware(
 
 @app.get("/test")
 def read_root():
-    return {"Hello": "FastAPI"}
+    return {
+        "Port": "localhost:8080",
+        "Status": "200"
+            }
 
-
+@app.get("/pyTest")
+def read_root():
+    return {
+        "Port": "localhost:8080",
+        "Status": "200"
+            }
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: Union[str, None] = None):
     return {"item_id": item_id, "q": q}
