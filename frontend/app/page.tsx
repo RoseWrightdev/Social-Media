@@ -1,42 +1,53 @@
 "use client"
 
-import { useState, useEffect } from 'react'; // Import for handling asynchronous data fetching
-
+import { useState, useEffect } from 'react'; 
 export default function Home() {
-  const [data, setData] = useState<any>({Port: "", Status: ""}); // Initialize data state
-  const [isLoading, setIsLoading] = useState(false); // State for loading indicator
+  const [dataGoServer, setDataGoServer] = useState<any>({Port: "", Status: ""}); 
+  const [dataPyServer, setDataPyServer] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true); // Set loading state to true
+    const fetchDataGoServer = async () => {
       try {
-        const response = await fetch('http://localhost:8080/test'); // Corrected URL format
-        const jsonData = await response.json();
-        console.log(jsonData)
-        setData(jsonData);
+        const response = await fetch('http://localhost:8080/test');
+        const jsonDataGoServer = await response.json();
+        console.log(jsonDataGoServer)
+        setDataGoServer(jsonDataGoServer);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching dataGoServer:', error);
       } finally {
-        setIsLoading(false); // Set loading state to false
+        setIsLoading(false);
       }
     };
 
-    fetchData();
+    fetchDataGoServer();
 
-  }, []); // Empty dependency array to fetch data only once on component mount
+    const fetchDataPyServer = async () => {
+      try {
+        const response2 = await fetch('http://localhost:8000/test');
+        const jsonDataPyServer = await response2.json();
+        console.log(jsonDataPyServer)
+        setDataPyServer(jsonDataPyServer);
+      } catch (error) {
+        console.error('Error fetching dataGoServer:', error);
+      }
+    };
 
- 
+    fetchDataPyServer();
+  }, []);
 
   return (
     <>
-      {/* {!isLoading && data?.Port && (  // Display data only if loaded and has `Port` property
+      {/* {!isLoading && dataGoServer?.Port && (  // Display dataGoServer only if loaded and has `Port` property
         <div>
-          Root: Server port is {data} and status is {data[0].Status}.
+          Root: Server port is {dataGoServer} and status is {dataGoServer[0].Status}.
         </div>
       )}
       {isLoading && <p>Loading...</p>} Display loading indicator */}
 
-      {JSON.stringify(data)}
+      {JSON.stringify(dataGoServer)}
+      {JSON.stringify(dataPyServer)}
+
     </>
   );
 }
