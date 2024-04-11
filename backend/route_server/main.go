@@ -65,6 +65,6 @@ func main() {
 
 	router.Use(CORSMiddleware())
 	router.GET("/test", getServerTest)
-	router.GET("/pyTest", getPyServerTest)
+//	router.GET("/pyTest", getPyServerTest)
 	router.Run(port)
 }
