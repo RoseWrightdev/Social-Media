@@ -1,14 +1,16 @@
-package main
+package server
 
 import (
+	"backend/database"
 	"net/http"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
-const	port = "5432"
+const port = "5432"
 
-func main() {
+func Run() {
 	router := gin.Default()
 	CORSMiddleware := func() gin.HandlerFunc {
 		return cors.New(cors.Config{
@@ -24,7 +26,6 @@ func main() {
 	router.Run("localhost:8080")
 }
 
-
 type portAndStatus struct {
 	Port   string `json:"port"`
 	Status int    `json:"status"`
@@ -36,4 +37,10 @@ var portStatus = []portAndStatus{
 
 func getServerTest(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, portStatus)
+
+	db, err := database.Connect()
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
 }
