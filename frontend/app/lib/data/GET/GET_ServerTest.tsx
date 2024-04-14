@@ -15,6 +15,7 @@ export default async function GET_ServerTest() {
   const data = dataArr[0]
   return (
     <>
+      <h1>Go Server</h1>
       <div>port: {data.port}</div>
       <div>status: {data.status}</div>
     </>

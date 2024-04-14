@@ -15,6 +15,7 @@ export default async function GET_Database() {
   const data: GET_Database_TYPE = dataArr[0]
   return (
     <>
+      <h1>Postgres DB</h1>
       <div>id: {data.id}</div>
       <div>username: {data.username}</div>
       <div>email: {data.email}</div>
