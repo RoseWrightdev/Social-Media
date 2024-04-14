@@ -10,14 +10,13 @@ async function getData() {
   return res.json()
 }
 
-export default async function GoServerTest() {
+export default async function GET_ServerTest() {
   const dataArr = await getData()
   const data = dataArr[0]
- 
   return (
     <>
-      <div>{data.Port}</div>
-      <div>{data.Status}</div>
+      <div>port: {data.port}</div>
+      <div>status: {data.status}</div>
     </>
   )
 }

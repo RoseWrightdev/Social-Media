@@ -33,7 +33,6 @@ func Connect() (*sql.DB, error) {
 	err = db.Ping()
 	if err != nil {
 		return nil, err
-	}
-
+	}     
 	return db, nil
 }
