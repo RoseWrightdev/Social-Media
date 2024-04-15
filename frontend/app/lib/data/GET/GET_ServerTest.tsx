@@ -1,4 +1,5 @@
 import { SERVER_PATH } from '@/app/lib/utils/constants'
+import { GET_SeverTest_TYPE } from '@/app/lib/utils/types'
 
 async function getData() {
   const res = await fetch(SERVER_PATH + "/test")
@@ -12,7 +13,7 @@ async function getData() {
 
 export default async function GET_ServerTest() {
   const dataArr = await getData()
-  const data = dataArr[0]
+  const data: GET_SeverTest_TYPE = dataArr[0]
   return (
     <>
       <h1>Go Server</h1>
