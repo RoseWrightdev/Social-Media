@@ -2,6 +2,6 @@
 .env
 
 # pycharm
-/backend/ai_server/.idea
-/backend/ai_server/.venv
-/backend/ai_server/__pycache__
+/backend/python/.idea
+/backend/python/.venv
+/backend/python/__pycache__
