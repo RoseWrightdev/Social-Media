@@ -1,7 +1,6 @@
-package server
+package main
 
 import (
-	"backend/database"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -45,7 +44,7 @@ type usersSchema struct {
 }
 
 func getDataBase(c *gin.Context) {
-	db, err := database.Connect()
+	db, err := Connect()
 	if err != nil {
 		panic(err)
 	}
