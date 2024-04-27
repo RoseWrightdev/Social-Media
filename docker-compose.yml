@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   nextjs:
     container_name: nextjs
@@ -24,11 +22,11 @@ services:
       POSTGRES_DB: go
   db:
     container_name: db
-    image: postgres:13
+    image: postgres:16.2
     environment:
-      POSTGRES_USER: 
-      POSTGRES_PASSWORD: 
-      POSTGRES_DB: 
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: new_password
+      POSTGRES_DB: go
     volumes:
       - db-data:/var/lib/postgresql/data
 
