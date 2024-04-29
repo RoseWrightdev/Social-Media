@@ -1,5 +1,5 @@
-import { SERVER_PATH } from '@/app/lib/utils/constants'
-import { GET_SeverTest_TYPE } from '@/app/lib/utils/types'
+import { SERVER_PATH } from '@/lib/constants'
+import { GET_SeverTest_TYPE } from '@/lib/types'
 
 async function getData() {
   const res = await fetch(SERVER_PATH + "/test")
