@@ -8,7 +8,6 @@ services:
       - "3000:3000" 
     volumes:
       - nextjs-data:/app/.next 
-
   go:
     container_name: go
     build: 
@@ -22,14 +21,13 @@ services:
       POSTGRES_DB: go
   db:
     container_name: db
-    image: postgres:16.2
+    image: postgres:13
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: new_password
       POSTGRES_DB: go
     volumes:
       - db-data:/var/lib/postgresql/data
-
 volumes:
   nextjs-data:
   db-data:
