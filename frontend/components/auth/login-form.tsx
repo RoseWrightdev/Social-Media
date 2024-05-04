@@ -1,6 +1,5 @@
 "use client";
 
-import CardWrapper from "./card-wrapper";
 import {
   Form,
   FormControl,
@@ -19,7 +18,7 @@ import { z } from "zod";
 import { useFormStatus } from "react-dom";
 import { useState } from "react";
 
-const LoginForm = () => {
+export default function LoginForm() {
     const [loading, setLoading] = useState(false);
 
   const form = useForm({
@@ -37,12 +36,6 @@ const LoginForm = () => {
 
   const { pending } = useFormStatus();
   return (
-    <CardWrapper
-      label="Login to your account"
-      title="Login"
-      backButtonHref="/auth/register"
-      backButtonLabel="Don't have an account? Register here."
-    >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-4">
@@ -82,8 +75,5 @@ const LoginForm = () => {
           </Button>
         </form>
       </Form>
-    </CardWrapper>
   );
 };
-
-export default LoginForm;

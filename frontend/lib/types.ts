@@ -8,3 +8,10 @@ export interface GET_Database_TYPE {
   username: string,
   email: string
 }
+
+export interface POST_Register_TYPE { 
+  username: string,
+  email: string,
+  password: string,
+  confirmPassword: string
+}
