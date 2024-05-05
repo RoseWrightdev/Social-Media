@@ -2,21 +2,19 @@ import { SERVER_PATH } from '@/lib/constants'
 import { GET_Database_TYPE } from '@/lib/types'
 
 async function getData() {
-  const res = await fetch(SERVER_PATH + "/database")
+  const res = await fetch(SERVER_PATH + "/database", {cache: "no-store"})
   if(!res.ok){
     throw new Error('Failed to fetch data')
   }
-
   return res.json()
 };
 
 export default async function GET_Database() {
-  const dataArr = await getData()
-  const data: GET_Database_TYPE = dataArr[0]
+  const data = await getData()
   console.log(data)
 
   return (
-  dataArr.map((data: GET_Database_TYPE) => {
+  data.map((data: GET_Database_TYPE) => {
     return (
       <>
         <div>id:{data.id}</div>
