@@ -6,7 +6,8 @@ type PortAndStatus struct {
 }
 
 type UsersSchema struct {
-	Id       int    `json:"id"`
+	Id       string `json:"id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
+	Password string `json:"password"`
 }

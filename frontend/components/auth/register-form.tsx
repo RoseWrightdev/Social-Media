@@ -9,17 +9,17 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { RegisterSchema } from "@/schema";
+import POST_Register from "@/lib/data/POST/POST_Register";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { z } from "zod";
 import { useFormStatus } from "react-dom";
-import { use, useState } from "react";
+import { useState } from "react";
 
 export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
-  const [getSlide, setSlide] = useState(2);
 
   const form = useForm({
     resolver: zodResolver(RegisterSchema),
@@ -32,17 +32,11 @@ export default function RegisterForm() {
   });
 
   const onSubmit = (data: z.infer<typeof RegisterSchema>) => {
-    setLoading(true);
     console.log(data);
+    setLoading(true);
+    POST_Register(data);
   };
 
-  function nextSlide() {
-    if(getSlide === 2) {
-      setSlide(1);
-    } else {
-      setSlide(getSlide + 1);
-    }
-  }
 
   const { pending } = useFormStatus();
   return (

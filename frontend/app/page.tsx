@@ -1,4 +1,5 @@
 import RegisterForm from "@/components/auth/register-form"
+import GET_Database from "@/lib/data/GET/GET_Database"
 
 export default function Home(){
   return (
@@ -14,7 +15,8 @@ export default function Home(){
           <h1 className="font-black text-3xl">Create an account</h1>
           <h3 className="text-balance text-center px-4">Enter your email below to create your account</h3>
           <br/>
-          <RegisterForm />
+          <GET_Database/>
+          <RegisterForm/>
         </div>
         {/* sign-up */}
       </div>

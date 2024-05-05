@@ -28,11 +28,12 @@ func GetDataBaseTest(c *gin.Context) {
 	}
 
 	for rows.Next() {
-		var id int
+		var id string
 		var username string
 		var email string
+		var password string
 
-		err := rows.Scan(&id, &username, &email)
+		err := rows.Scan(&id, &username, &email, &password)
 		if err != nil {
 			panic(err)
 		}
@@ -42,6 +43,7 @@ func GetDataBaseTest(c *gin.Context) {
 				Id:       id,
 				Username: username,
 				Email:    email,
+				Password: password,
 			},
 		}
 
