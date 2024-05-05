@@ -31,7 +31,7 @@ func GetDataBaseTest(c *gin.Context) {
 	var users []UsersSchema
 	for rows.Next() {
 		var user UsersSchema
-		err := rows.Scan(&user.Id, &user.Username, &user.Email, &user.Password)
+		err := rows.Scan(&user.Id, &user.Password, &user.Email, &user.Username)
 		if err != nil {
 			panic(err)
 		}
