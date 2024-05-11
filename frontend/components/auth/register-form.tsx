@@ -31,10 +31,22 @@ export default function RegisterForm() {
     },
   });
 
-  const onSubmit = (data: z.infer<typeof RegisterSchema>) => {
+  const onSubmit = async (data: z.infer<typeof RegisterSchema>) => {
     console.log(data);
     setLoading(true);
-    POST_Register(data);
+    const response = await POST_Register(data);
+    setLoading(false);
+  
+    if (response.status === 409) {
+      form.setError("email", {
+        type: "manual",
+        message: response.error || "",
+      });
+      form.setError("username", {
+        type: "manual",
+        message: response.error || "",
+      });
+    }
   };
 
 
