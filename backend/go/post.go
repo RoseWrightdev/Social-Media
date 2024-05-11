@@ -23,7 +23,7 @@ func PostRegister(c *gin.Context) {
 					switch pqErr.Code {
 					case "23505":
 							c.IndentedJSON(http.StatusConflict, gin.H{
-									"message": "Username or email already in exists",
+									"message": "Username and/or email already in use.",
 							})
 							return
 					}
