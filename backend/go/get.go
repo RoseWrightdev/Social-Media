@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var portStatus = []PortAndStatus{
@@ -59,6 +60,41 @@ func GetUserById(c *gin.Context) {
 		err := rows.Scan(&user.Id, &user.Password, &user.Email, &user.Username)
 		if err != nil {
 			panic(err)
+		}
+	}
+	c.IndentedJSON(http.StatusOK, user)
+}
+
+func GetLogin(c *gin.Context) {
+	db, err := Connect()
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	email := c.Param("email")
+	password := c.Param("password")
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+
+	rows, err := db.Query("SELECT * FROM users WHERE email = $1", email)
+	if err != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{})
+		return
+	}
+	defer rows.Close()
+
+	var user UsersSchema
+	for rows.Next() {
+		err := rows.Scan(&user.Id, &user.Password, &user.Email, &user.Username)
+		if err != nil {
+			panic(err)
+		}
+		if bcrypt.CompareHashAndPassword([]byte(user.Password), hashedPassword) != nil {
+			c.IndentedJSON(http.StatusUnauthorized, gin.H{})
+			return
 		}
 	}
 	c.IndentedJSON(http.StatusOK, user)

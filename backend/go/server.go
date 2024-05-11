@@ -20,6 +20,7 @@ func Run() {
 	router.GET("/server", GetServer)
 	router.GET("/database", GetDataBase)
 	router.GET("/user/:id", GetUserById)
+	router.GET("/login/:email/:password", GetLogin)
 
 	// TODO: Add the following routes:
 	//router.GET("/post/:id", GetPostById)
