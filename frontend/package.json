@@ -19,7 +19,6 @@
     "lucide-react": "^0.376.0",
     "next": "^14.2.3",
     "next-auth": "^5.0.0-beta.18",
-    "pg": "^8.11.5",
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.51.3",
@@ -29,7 +28,6 @@
   },
   "devDependencies": {
     "@types/node": "^20",
-    "@types/pg": "^8.11.5",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
