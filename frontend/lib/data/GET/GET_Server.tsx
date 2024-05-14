@@ -2,13 +2,14 @@ import { SERVER_PATH } from '@/lib/constants'
 import { GET_Sever_TYPE } from '@/lib/types'
 
 async function getData() {
-  const res = await fetch(SERVER_PATH + "/test")
+  const req = await fetch(SERVER_PATH + "/test")
 
-  if(!res.ok){
+  if(!req.ok){
     throw new Error('Failed to fetch data')
   }
 
-  return res.json()
+  const res = await req.json()
+  return res
 }
 
 export default async function GET_Server() {

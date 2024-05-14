@@ -1,8 +1,18 @@
 import { SERVER_PATH } from "@/lib/constants"
-import { POST_Register_TYPE } from "@/lib/types"
+import { POST_Register_TYPE} from "@/lib/types"
+import { createSession } from "@/lib/session"
+import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+
 
 async function postData(data: POST_Register_TYPE){ 
-  const res = await fetch(SERVER_PATH + "/register", {
+  //vaidated zod data
+  const password = data.password 
+  const email = data.email
+  const username = data.username
+
+  //post data to server
+  const req = await fetch(SERVER_PATH + "/register/" + email + "/" + username + "/" + password,{
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -10,21 +20,24 @@ async function postData(data: POST_Register_TYPE){
     body: JSON.stringify(data)
   })
   
-  if(res.status === 409){
-    return { status: 409, data: null, error: 'Email and/or username is already in use' }
-  }
-
-  else if(!res.ok){
+  //handle server request
+  //if email and/or username is already in use
+  if (req.status === 409) {
+    return req.status
+  } 
+  //check for server error
+  else if (!req.ok) {
     throw new Error('Failed to post data')
-  }
-
+  } 
+  //if successful, create session using the user id from the database return null
   else {
-    const jsonData = await res.json();
-    return { status: res.status, data: jsonData, error: null }
+    const res = await req.json();
+    createSession(res.id)
+    redirect('/dashboard')
   }
 }
 
-export default async function POST_Register(data: POST_Register_TYPE){
-  const response = await postData(data)
-  return response
+export default async function POST_Register(ValdiatedFormData: POST_Register_TYPE){
+  const reqponse = await postData(ValdiatedFormData)
+  return reqponse
 }

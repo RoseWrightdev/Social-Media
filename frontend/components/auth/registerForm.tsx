@@ -8,7 +8,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { RegisterSchema } from "@/schema";
+import { RegisterSchema } from "@/lib/schema";
 import POST_Register from "@/lib/data/POST/POST_Register";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -16,10 +16,8 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { z } from "zod";
 import { useFormStatus } from "react-dom";
-import { useState } from "react";
 
 export default function RegisterForm() {
-  const [loading, setLoading] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(RegisterSchema),
@@ -31,20 +29,17 @@ export default function RegisterForm() {
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof RegisterSchema>) => {
-    console.log(data);
-    setLoading(true);
-    const response = await POST_Register(data);
-    setLoading(false);
+  const onSubmit = async (ValdiatedFormData: z.infer<typeof RegisterSchema>) => {
+    const postResponseStatus = await POST_Register(ValdiatedFormData);
   
-    if (response.status === 409) {
+    if (postResponseStatus === 409) {
       form.setError("email", {
         type: "manual",
-        message: response.error || "",
+        message: "Email or username already in use",
       });
       form.setError("username", {
         type: "manual",
-        message: response.error || "",
+        message: "Email or username already in use",
       });
     }
   };
@@ -112,7 +107,7 @@ export default function RegisterForm() {
                   )}
                 />
           <Button type="submit" className="w-full" disabled={pending}>
-            {loading ? "Loading..." : "Register"}
+            {pending ? "Loading..." : "Register"}
           </Button>
           </div>
         </form>

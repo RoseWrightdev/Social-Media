@@ -1,6 +1,5 @@
-import RegisterForm from "@/components/auth/register-form"
-import GET_Database from "@/lib/data/GET/GET_Database"
-import { Suspense } from "react"
+import RegisterForm from "@/components/auth/registerForm"
+import Link from 'next/link'
 
 export default function Home(){
   return (
@@ -12,13 +11,10 @@ export default function Home(){
         </div>
         {/* right */}
         <div className="flex flex-col items-center justify-center w-[100dvw] md:w-[50dvw] h-[100dvh] ">
-          <button className="absolute top-6 right-6">Login</button>
+          <Link href={"/login"} className="absolute top-6 right-6">Login</Link>
           <h1 className="font-black text-3xl">Create an account</h1>
           <h3 className="text-balance text-center px-4">Enter your email below to create your account</h3>
           <br/>
-            <Suspense fallback={<div>Loading...</div>}>
-              <GET_Database/>
-            </Suspense>
           <RegisterForm/>
         </div>
         {/* sign-up */}

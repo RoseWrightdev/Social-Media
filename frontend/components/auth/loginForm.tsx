@@ -3,24 +3,24 @@
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { LoginSchema } from "@/schema";
+import { LoginSchema } from "@/lib/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { z } from "zod";
 import { useFormStatus } from "react-dom";
-import { useState } from "react";
+import GET_Login from "@/lib/data/GET/GET_Login";
+import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+
 
 export default function LoginForm() {
-    const [loading, setLoading] = useState(false);
-
   const form = useForm({
     resolver: zodResolver(LoginSchema),
     defaultValues: {
@@ -29,11 +29,24 @@ export default function LoginForm() {
     },
   });
 
-  const onSubmit = (data: z.infer<typeof LoginSchema>) => {
-    setLoading(true);
-    console.log(data);
-  };
+  const onSubmit = async (data: z.infer<typeof LoginSchema>) => {
+   const error = await GET_Login(data.email, data.password);
+    if (error.status !== 200) {
+      form.setError("email", {
+        type: "manual",
+        message: "Invalid email or password",
+      });
+      form.setError("password", {
+        type: "manual",
+        message: "Invalid email or password",
+      });
+    } else { 
+      revalidatePath('/dashboard')
+      redirect('/dashboard')
+    }
+  }
 
+ 
   const { pending } = useFormStatus();
   return (
       <Form {...form}>
@@ -70,8 +83,8 @@ export default function LoginForm() {
               )}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={pending}>
-            {loading ? "Loading..." : "Login"}
+          <Button type="submit" className="w-full" disabled={pending} >
+            Login
           </Button>
         </form>
       </Form>

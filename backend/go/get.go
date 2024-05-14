@@ -15,7 +15,6 @@ func GetServer(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, portStatus)
 }
 
-
 func GetDataBase(c *gin.Context) {
 	db, err := Connect()
 	if err != nil {
@@ -79,23 +78,24 @@ func GetLogin(c *gin.Context) {
 		panic(err)
 	}
 
-	rows, err := db.Query("SELECT * FROM users WHERE email = $1", email)
+	rows, err := db.Query("SELECT * FROM users WHERE email = $1 AND password = $2", email, hashedPassword)	
 	if err != nil {
-		c.IndentedJSON(http.StatusNotFound, gin.H{})
+		c.IndentedJSON(http.StatusUnauthorized, gin.H{})
 		return
 	}
 	defer rows.Close()
 
 	var user UsersSchema
+	c.Bind(&user)
 	for rows.Next() {
 		err := rows.Scan(&user.Id, &user.Password, &user.Email, &user.Username)
 		if err != nil {
 			panic(err)
 		}
 		if bcrypt.CompareHashAndPassword([]byte(user.Password), hashedPassword) != nil {
-			c.IndentedJSON(http.StatusUnauthorized, gin.H{})
+			c.IndentedJSON(http.StatusOK, user)
 			return
 		}
 	}
-	c.IndentedJSON(http.StatusOK, user)
+	c.IndentedJSON(http.StatusUnauthorized, user)
 }

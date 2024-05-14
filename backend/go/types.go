@@ -11,3 +11,11 @@ type UsersSchema struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
+
+type Id struct { 
+	Id string `json:"id"`
+}
+
+type Status struct { 
+	Status string `json:"status"`
+}

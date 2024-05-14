@@ -39,7 +39,7 @@ func Run() {
 
 	//Post
 
-	router.POST("/register", PostRegister)
+	router.POST("/register/:email/:username/:password", PostRegister)
 	
 	router.Run("localhost:8080")
 }
