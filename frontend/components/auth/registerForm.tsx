@@ -16,9 +16,10 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { z } from "zod";
 import { useFormStatus } from "react-dom";
+import { useRouter } from 'next/navigation'
 
 export default function RegisterForm() {
-
+  const router = useRouter()
   const form = useForm({
     resolver: zodResolver(RegisterSchema),
     defaultValues: {
@@ -41,6 +42,9 @@ export default function RegisterForm() {
         type: "manual",
         message: "Email or username already in use",
       });
+    }
+    else if (postResponseStatus === 200) {
+      router.push('/dashboard')
     }
   };
 

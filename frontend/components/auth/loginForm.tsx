@@ -16,11 +16,11 @@ import { Button } from "../ui/button";
 import { z } from "zod";
 import { useFormStatus } from "react-dom";
 import GET_Login from "@/lib/data/GET/GET_Login";
-import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
+import { useRouter } from "next/navigation";
 
 
 export default function LoginForm() {
+  const router = useRouter()
   const form = useForm({
     resolver: zodResolver(LoginSchema),
     defaultValues: {
@@ -30,8 +30,8 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (data: z.infer<typeof LoginSchema>) => {
-   const error = await GET_Login(data.email, data.password);
-    if (error.status !== 200) {
+    const error = await GET_Login(data.email, data.password);
+    if (error?.status !== 200) {
       form.setError("email", {
         type: "manual",
         message: "Invalid email or password",
@@ -41,8 +41,7 @@ export default function LoginForm() {
         message: "Invalid email or password",
       });
     } else { 
-      revalidatePath('/dashboard')
-      redirect('/dashboard')
+      router.push('/dashboard')
     }
   }
 

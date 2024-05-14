@@ -33,7 +33,7 @@ async function postData(data: POST_Register_TYPE){
   else {
     const res = await req.json();
     createSession(res.id)
-    redirect('/dashboard')
+    return 200;
   }
 }
 
