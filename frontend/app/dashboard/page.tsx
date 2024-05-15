@@ -1,20 +1,28 @@
-'use client'
-
-import GET_Database from "@/lib/data/GET/GET_Database"
+'use sever'
+import GET_UserById from "@/lib/data/GET/GET_UserById";
 import { Suspense } from "react"
-import { Button } from "@/components/ui/button"
-import { deleteSession } from "@/lib/session";
+import Logout from "@/components/auth/logoutButton";
+import { verifySession } from "@/lib/dataAccessLayer";
+import { User_TYPE } from "@/lib/types";
 
-export default function Page() {
+
+
+export default async function Page() { 
+  const session = await verifySession();
+  const user:User_TYPE = await GET_UserById(session.userId.toString());
   return (
     <div>
       <h1>Dashboard</h1>
       <Suspense fallback={<div>Loading...</div>}>
-        <GET_Database/>
+        <div>
+          <div>id:{user.id}</div>
+          <div>username:{user.username}</div>
+          <div>email:{user.email}</div>
+          <div>password:{user.password}</div>
+          <br />
+        </div>
       </Suspense>
-      <Button onClick={() => deleteSession()}>
-        Logout
-      </Button>
+      <Logout/>
     </div>
   );
 }
