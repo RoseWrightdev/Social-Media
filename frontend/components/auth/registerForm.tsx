@@ -31,7 +31,7 @@ export default function RegisterForm() {
   });
 
   const onSubmit = async (ValdiatedFormData: z.infer<typeof RegisterSchema>) => {
-    const postResponseStatus = await POST_Register(ValdiatedFormData);
+  const postResponseStatus = await POST_Register(ValdiatedFormData);
   
     if (postResponseStatus === 409) {
       form.setError("email", {
@@ -47,7 +47,6 @@ export default function RegisterForm() {
       router.push('/dashboard')
     }
   };
-
 
   const { pending } = useFormStatus();
   return (
