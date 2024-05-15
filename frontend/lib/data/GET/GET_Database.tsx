@@ -1,5 +1,6 @@
 import { SERVER_PATH } from '@/lib/constants'
 import { GET_Database_TYPE } from '@/lib/types'
+import { verifySession } from '@/lib/dataAccessLayer'
 
 async function getData() {
   const req = await fetch(SERVER_PATH + "/database", {cache: "no-store"})
@@ -11,8 +12,11 @@ async function getData() {
 };
 
 export default async function GET_Database() {
+  const session = await verifySession()
+  if(session === null){
+    throw new Error('Failed to verify session')
+  }
   const res = await getData()
-  console.log(res)
 
   return (
     res.map((data: GET_Database_TYPE) => {
@@ -22,6 +26,7 @@ export default async function GET_Database() {
         <div>username:{data.username}</div>
         <div>email:{data.email}</div>
         <div>password:{data.password}</div>
+        <br />
       </>
     )
    })
