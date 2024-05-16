@@ -7,13 +7,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var portStatus = []PortAndStatus{
-	{Port: "8000", Status: http.StatusOK},
-}
-
-func GetServer(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, portStatus)
-}
 
 func GetDataBase(c *gin.Context) {
 	db, err := Connect()
