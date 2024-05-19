@@ -77,6 +77,7 @@ func PostRegister(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, id)
 }
 
+
 // PostResetPassword handles the POST request to /resetpassword
 // It generates a token and sends an email to the user with a link to reset the password
 func PostResetPassword(c *gin.Context) {
