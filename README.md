@@ -1,4 +1,9 @@
-
+# Features
+Login
+Logout
+register account
+email reset password link
+user sessions
 
 
 # UI
