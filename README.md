@@ -1,6 +1,12 @@
 # todo
 
-reset password link
+reset password link plan
+
+on passswordReset/ 
+
+alter users table & add token collum which is an uuid that can be null
+
+
 
 
 
@@ -13,3 +19,4 @@ reset password link
 /reset/uuid
 
 email to the user the link
+

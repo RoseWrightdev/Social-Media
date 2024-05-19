@@ -20,25 +20,20 @@ func Run() {
 	router.GET("/database", GetDataBase)
 	router.GET("/user/:id", GetUserById)
 	router.GET("/login/:email/:password", GetLogin)
-
-	// TODO: Add the following routes:
-	//router.GET("/post/:id", GetPostById)
-	//router.GET("/posts", GetPosts)
-	//router.GET("/user/:id/posts", GetPostsByUserId)
-	//router.GET("/user/:id/posts/:post_id", GetPostByUserIdAndPostId)
-
-	//Put router.PUT("/user/:id", PutUserById)
-	//Put router.PUT("/post/:id", PutPostById)
-	//Put router.PUT("/user/:id/post/:post_id", PutPostByUserIdAndPostId)
-
-	//Delete router.DELETE("/user/:id", DeleteUserById)
-	//Delete router.DELETE("/post/:id", DeletePostById)
-	//Delete router.DELETE("/user/:id/post/:post_id", DeletePostByUserIdAndPostId)
-	//Delete router.DELETE("/user/:id/posts", DeletePostsByUserId)
+	//router.GET("/resetpassword/:email", GetResetPassword)
 
 	//Post
-
 	router.POST("/register/:email/:username/:password", PostRegister)
+
+	//resetpassword checks if the email exists in the database
+	// if the email exists it attaches a token to the user account
+	// sends a reset password email with that token
+	// the user can then use the token to update their password
+	router.POST("/resetpassword/:email", PostResetPassword)
+
+	//updatepassword checks if the token exists in the database
+	// if the token exists it updates the password for the user account
+	router.POST("/updatepassword/:token/:password", PostUpdatePassword)
 	
 	router.Run("localhost:8080")
 }

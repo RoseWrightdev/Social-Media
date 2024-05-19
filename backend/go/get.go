@@ -7,17 +7,21 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-
+// GetDataBase handles the GET request to /database
+// It returns the first 10 users in the database
+// used for testing purposes
 func GetDataBase(c *gin.Context) {
 	db, err := Connect()
 	if err != nil {
-		panic(err)
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{})
+		return
 	}
 	defer db.Close()
 
 	rows, err := db.Query("SELECT * FROM users LIMIT 10")
 	if err != nil {
-		panic(err)
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{})
+		return
 	}
 	defer rows.Close()
 
@@ -26,13 +30,15 @@ func GetDataBase(c *gin.Context) {
 		var user UsersSchema
 		err := rows.Scan(&user.Id, &user.Password, &user.Email, &user.Username)
 		if err != nil {
-			panic(err)
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{})
+		return
 		}
 		users = append(users, user)
 	}
 	c.IndentedJSON(http.StatusOK, users)
 }
 
+// GetUserById handles the GET request to /user/:id
 func GetUserById(c *gin.Context) {
 	db, err := Connect()
 	if err != nil {
@@ -49,7 +55,7 @@ func GetUserById(c *gin.Context) {
 
 	var user UsersSchema
 	for rows.Next() {
-		err := rows.Scan(&user.Id, &user.Password, &user.Email, &user.Username)
+		err := rows.Scan(&user.Id, &user.Password, &user.Email, &user.Username, &user.ResetToken)
 		if err != nil {
 			panic(err)
 		}
@@ -57,10 +63,11 @@ func GetUserById(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, user)
 }
 
+// GetLogin handles the GET request to /login/:email/:password
 func GetLogin(c *gin.Context) {
 	db, err := Connect()
 	if err != nil {
-			panic(err)
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{})
 	}
 	defer db.Close()
 
@@ -76,9 +83,10 @@ func GetLogin(c *gin.Context) {
 
 	var user UsersSchema
 	for rows.Next() {
-			err := rows.Scan(&user.Id, &user.Password, &user.Email, &user.Username)
+			err := rows.Scan(&user.Id, &user.Password, &user.Email, &user.Username, &user.ResetToken)
 			if err != nil {
-					panic(err)
+					c.IndentedJSON(http.StatusInternalServerError, gin.H{})
+		return
 			}
 			if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) == nil {
 					c.IndentedJSON(http.StatusOK, user)
