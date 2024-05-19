@@ -16,6 +16,7 @@ import (
 )
 
 // PostRegister handles the POST request to /register
+// It inserts a new user into the database
 func PostRegister(c *gin.Context) {
 	//get values from the request parameters
 	var email, username, password string
@@ -76,7 +77,8 @@ func PostRegister(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, id)
 }
 
-// PostResetPassword handles the POST request to /resetPassword
+// PostResetPassword handles the POST request to /resetpassword
+// It generates a token and sends an email to the user with a link to reset the password
 func PostResetPassword(c *gin.Context) {
 	var userSubmitedEmail = c.Param("email")
 		if userSubmitedEmail == "" {
@@ -152,6 +154,7 @@ func sendEmail(token string, toEmail string, c *gin.Context) {
 }
 
 // PostUpdatePassword handles the POST request to /updatePassword
+// It updates the password of the user with the token
 func PostUpdatePassword(c *gin.Context) {
 	var token = c.Param("token")
 	var password = c.Param("password")

@@ -1,8 +1,8 @@
 import UpdatePasswordForm from '@/components/auth/updatePasswordForm'
 
 export default function Page({params}: {params: {token: string}}) {
+  //fix unsantized user input
   const token = params.token
-
   
   return (
     <>
