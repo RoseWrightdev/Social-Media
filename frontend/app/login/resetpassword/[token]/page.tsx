@@ -1,8 +1,13 @@
 import UpdatePasswordForm from '@/components/auth/updatePasswordForm'
+import z from 'zod'
 
 export default function Page({params}: {params: {token: string}}) {
-  //fix unsantized user input
-  const token = params.token
+  const tokenSchema = z.object({
+    token: z.string()
+  })
+  const unsanitaizedToken = params.token
+  const sanitaizedToken = tokenSchema.parse({unsanitaizedToken})
+  const token = sanitaizedToken.token
   
   return (
     <>
