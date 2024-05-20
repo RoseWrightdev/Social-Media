@@ -189,7 +189,6 @@ func sendEmail(token string, toEmail string, c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{})
 }
 
-//fixme add expiration date to the token ~ 1 hour, use a go routine to delete expired tokens
 
 // PostUpdatePassword handles the POST request to /updatePassword
 // It updates the password of the user with the token
