@@ -17,6 +17,12 @@ type UsersSchema struct {
 type Id struct { 
 	Id string `json:"id"`
 }
+type IdAndPassword struct { 
+	Id       string `json:"id"`
+	Password string `json:"password"`
+}
+
+
 
 type Status struct { 
 	Status string `json:"status"`
