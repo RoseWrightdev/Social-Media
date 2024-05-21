@@ -110,7 +110,7 @@ func PostResetPassword(c *gin.Context) {
 
 	resetToken := generateResetToken()
 	//expire in 2 hours
-	resetTokenExpireIn := 2 * time.Hour
+	resetTokenExpireIn := 2 * time.Minute
 
 	//concurently expire
 	errCh := make(chan error)
@@ -119,11 +119,12 @@ func PostResetPassword(c *gin.Context) {
 			errCh <- tokenExpire(resetToken, resetTokenExpireIn, db)
 	}()
 
+	go func() {
 	err = <- errCh
-	if err != nil {
-			log.Printf("An error occurred: %v", err)
-	}
-	
+		if err != nil {
+				log.Printf("An error occurred: %v", err)
+		}
+	}()
 	_, err = addRestTokenToDatabase(resetToken, userId, db)
 	if err != nil {
 		panic(err)
