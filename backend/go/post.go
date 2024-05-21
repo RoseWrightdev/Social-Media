@@ -110,13 +110,13 @@ func PostResetPassword(c *gin.Context) {
 
 	resetToken := generateResetToken()
 	//expire in 2 hours
-	resetTokenExpireIn := 2 * time.Minute
+	resetTokenExpireIn := 2 * time.Hour
 
 	//concurently expire
 	errCh := make(chan error)
 
 	go func() {
-			errCh <- tokenExpire(resetToken, resetTokenExpireIn, db)
+			errCh <- tokenExpire(resetToken, resetTokenExpireIn)
 	}()
 
 	go func() {
@@ -146,12 +146,19 @@ func generateResetToken() string {
 	return hex.EncodeToString(resetToken)
 }
 
-func tokenExpire(resetToken string, timeUntilExpriation time.Duration, db *sql.DB) (error) {
+func tokenExpire(resetToken string, timeUntilExpriation time.Duration) (error) {
 	//expire token
 	time.Sleep(timeUntilExpriation)
 
+	db, err := Connect()
+	if err != nil {
+		panic(err)
+
+	}
+	defer db.Close()
+	
 	//delete token from database
-	_, err := db.Exec("UPDATE USERS SET reset_token = NULL WHERE reset_token = $1", resetToken)
+	_, err = db.Exec("UPDATE USERS SET reset_token = NULL WHERE reset_token = $1", resetToken)
 	if err != nil {
     log.Printf("An error occurred: %v", err)
     return err
