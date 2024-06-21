@@ -6,6 +6,15 @@ register account
 email reset password link
 user sessions
 
+# next steps
+
+build content based recommendation system
+
+build collaborative filtering recommendation system 
+
+build dashboard w/ feed and posts liking functionality etc
+
+
 ## UI
 
 ![root](https://github.com/RoseWrightdev/sm/assets/100792806/2d0ffe79-d482-4d78-816f-651adbd7dd46)
