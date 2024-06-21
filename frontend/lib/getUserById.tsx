@@ -1,7 +1,7 @@
 import { SERVER_PATH } from "@/lib/constants";
 import { verifySession } from '@/lib/dataAccessLayer'
 
-export default async function GET_UserById(id: string) {
+export default async function getUserById(id: string) {
   const session = await verifySession();
   if (session === null) {
     throw new Error("Failed to verify session");
