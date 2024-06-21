@@ -18,7 +18,7 @@ import { useFormStatus } from "react-dom";
 import { useRouter } from 'next/navigation';
 import {Endpoint, DecisionTree} from "@/lib/endpoint";
 import { createSession } from "@/lib/session";
-import { User_TYPE } from "@/lib/types";
+import { User } from "@/lib/types";
 
 export default function RegisterForm() {
   const router = useRouter()
@@ -35,7 +35,7 @@ export default function RegisterForm() {
   const onSubmit = async (req: z.infer<typeof RegisterSchema>) => {
     const tree: DecisionTree = {
       200 : async (res: Response)=> {
-        const user: User_TYPE = await res.json()
+        const user: User = await res.json()
         createSession(user.id)
         router.push('/dashboard')
       },
@@ -52,6 +52,7 @@ export default function RegisterForm() {
     }
 
     const postRegister = new Endpoint("POST", "register", req, tree)
+    await postRegister.Exec()
   };
 
   const { pending } = useFormStatus();
