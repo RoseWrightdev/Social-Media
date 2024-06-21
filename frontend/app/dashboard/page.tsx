@@ -3,13 +3,13 @@ import getUserById from "@/lib/getUserById";
 import { Suspense } from "react"
 import Logout from "@/components/auth/logoutButton";
 import { verifySession } from "@/lib/dataAccessLayer";
-import { User_TYPE } from "@/lib/types";
+import { User } from "@/lib/types";
 
 
 
 export default async function Page() { 
   const session = await verifySession();
-  const user:User_TYPE = await getUserById(session.userId.toString());
+  const user:User = await getUserById(session.userId.toString());
   return (
     <div>
       <h1>Dashboard</h1>
