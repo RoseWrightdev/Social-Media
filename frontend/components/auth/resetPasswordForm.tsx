@@ -15,10 +15,11 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { z } from "zod";
 import { useFormStatus } from "react-dom";
-import POST_ResetPassword from "@/lib/data/POST/POST_ResetPassword";
-
+import { Endpoint, DecisionTree } from "@/lib/endpoint"
+import { useRouter } from "next/navigation";
 
 export default function ResetPasswordForm() {
+  const router = useRouter();
   const form = useForm({
     resolver: zodResolver(EmailSchema),
     defaultValues: {
@@ -26,8 +27,13 @@ export default function ResetPasswordForm() {
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof EmailSchema>) => {
-   await POST_ResetPassword(data.email);
+  const onSubmit = async (email: z.infer<typeof EmailSchema>) => {
+    const tree: DecisionTree = {
+      200 : ()=> router.push("/login"), 
+    }
+
+    const postResetPassword = new Endpoint("POST", "resetpassword", email, tree)
+    await postResetPassword.Exec()
   }
 
   const { pending } = useFormStatus();

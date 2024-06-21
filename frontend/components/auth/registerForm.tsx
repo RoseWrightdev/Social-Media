@@ -9,14 +9,16 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { RegisterSchema } from "@/lib/schema";
-import POST_Register from "@/lib/data/POST/POST_Register";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { z } from "zod";
 import { useFormStatus } from "react-dom";
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation';
+import {Endpoint, DecisionTree} from "@/lib/endpoint";
+import { createSession } from "@/lib/session";
+import { User_TYPE } from "@/lib/types";
 
 export default function RegisterForm() {
   const router = useRouter()
@@ -30,22 +32,26 @@ export default function RegisterForm() {
     },
   });
 
-  const onSubmit = async (ValdiatedFormData: z.infer<typeof RegisterSchema>) => {
-  const postResponseStatus = await POST_Register(ValdiatedFormData);
-  
-    if (postResponseStatus === 409) {
-      form.setError("email", {
-        type: "manual",
-        message: "Email or username already in use",
-      });
-      form.setError("username", {
-        type: "manual",
-        message: "Email or username already in use",
-      });
+  const onSubmit = async (req: z.infer<typeof RegisterSchema>) => {
+    const tree: DecisionTree = {
+      200 : async (res: Response)=> {
+        const user: User_TYPE = await res.json()
+        createSession(user.id)
+        router.push('/dashboard')
+      },
+      409 : ()=> { 
+        form.setError("email", {
+          type: "manual",
+          message: "Email or username already in use",
+        });
+        form.setError("username", {
+          type: "manual",
+          message: "Email or username already in use",
+        });
+      }
     }
-    else if (postResponseStatus === 200) {
-      router.push('/dashboard')
-    }
+
+    const postRegister = new Endpoint("POST", "register", req, tree)
   };
 
   const { pending } = useFormStatus();

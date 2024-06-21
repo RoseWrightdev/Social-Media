@@ -1,5 +1,5 @@
 'use sever'
-import GET_UserById from "@/lib/data/GET/GET_UserById";
+import GET_UserById from "@/lib/GET_UserById";
 import { Suspense } from "react"
 import Logout from "@/components/auth/logoutButton";
 import { verifySession } from "@/lib/dataAccessLayer";

@@ -15,9 +15,10 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { z } from "zod";
 import { useFormStatus } from "react-dom";
-import GET_Login from "@/lib/data/GET/GET_Login";
 import { useRouter } from "next/navigation";
-
+import { User_TYPE } from '@/lib/types'
+import { createSession } from "@/lib/session"
+import {Endpoint, DecisionTree} from "@/lib/endpoint"
 
 export default function LoginForm() {
   const router = useRouter()
@@ -29,23 +30,30 @@ export default function LoginForm() {
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof LoginSchema>) => {
-    const error = await GET_Login(data.email, data.password);
-    if (error?.status !== 200) {
-      form.setError("email", {
-        type: "manual",
-        message: "Invalid email or password",
-      });
-      form.setError("password", {
-        type: "manual",
-        message: "Invalid email or password",
-      });
-    } else { 
-      router.push('/dashboard')
+  const onSubmit = async (req: z.infer<typeof LoginSchema>) => {
+    const tree: DecisionTree = {
+      200 : async (res: Response)=> {
+        const user: User_TYPE = await res.json()
+        createSession(user.id)
+        router.push('/dashboard')
+      },
+      401 : ()=> {
+        form.setError("email", {
+          type: "manual",
+          message: "Invalid email or password",
+        });
+        form.setError("password", {
+          type: "manual",
+          message: "Invalid email or password",
+        });
+      },
+      500 : ()=> {throw new Error("500")},
+      502 : ()=> {throw new Error("502")}, 
     }
+  const getLogin = new Endpoint("GET", "login", req, tree)
+  await getLogin.Exec()
   }
 
- 
   const { pending } = useFormStatus();
   return (
       <Form {...form}>
