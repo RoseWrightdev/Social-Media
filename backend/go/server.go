@@ -4,7 +4,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
-//todo I want run to not only run the go server but also the react server in a docker container
+
 func Run() {
 	router := gin.Default()
 	CORSMiddleware := func() gin.HandlerFunc {
