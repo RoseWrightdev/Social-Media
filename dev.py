@@ -3,7 +3,10 @@ import subprocess
 import sys
 import threading
 
+import re
 import psutil
+
+next_process = None
 
 def handle_output(process, identifier):
     colors = {
@@ -16,12 +19,17 @@ def handle_output(process, identifier):
 
     for line in iter(process.stdout.readline, ''):
         if line:
+            # Basic replacement of known special characters
+            line = line.replace('â–²', '^').replace('âœ“', '✓')
+            # For more complex scenarios, use regular expressions to remove or replace non-ASCII characters
+            line = re.sub(r'[^\x00-\x7F]+', '', line)
             sys.stdout.write(f"{color}{identifier}:{reset_color} {line}")
         else:
             break
     process.stdout.close()
 
 def start_processes():
+    global next_process  # Declare as global to modify the global instance
     base_dir = os.path.dirname(os.path.abspath(__file__))
     pids_dir = os.path.join(base_dir, 'pids')
 
@@ -39,7 +47,7 @@ def start_processes():
 
     # Start the Next.js development server and handle its output in a separate thread
     os.chdir(os.path.join(base_dir, "frontend"))
-    next_process = subprocess.Popen(["C:\\Program Files\\nodejs\\npm.cmd", "run", "dev"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
+    next_process = subprocess.Popen(["C:\\Program Files\\nodejs\\npm.cmd", "run", "dev"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
     next_thread = threading.Thread(target=handle_output, args=(next_process, "Next"))
     next_thread.start()
 
@@ -47,6 +55,14 @@ def start_processes():
     next_thread.join()
 
 def stop_processes():
+    global next_process
+    if next_process and next_process.poll() is None:
+        try:
+            next_process.stdin.write('y')
+            next_process.stdin.flush()
+        except Exception as e:
+            print(f"Error sending confirmation to Next.js process: {e}")
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
     pids_dir = os.path.join(base_dir, 'pids')
 
@@ -59,9 +75,11 @@ def stop_processes():
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 print(f"Process {pid} could not be terminated.")
         os.remove(os.path.join(pids_dir, pid_file))
-
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "stop":
-        stop_processes()
-    else:
+    try:
         start_processes()
+        # Add any other main execution functions here
+    except KeyboardInterrupt:
+        stop_processes()
+        print("\nScript terminated by user. Exiting...")
+        sys.exit(0)
