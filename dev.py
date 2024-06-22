@@ -29,7 +29,7 @@ def handle_output(process, identifier):
     process.stdout.close()
 
 def start_processes():
-    global next_process  # Declare as global to modify the global instance
+    global next_process
     base_dir = os.path.dirname(os.path.abspath(__file__))
     pids_dir = os.path.join(base_dir, 'pids')
 
@@ -75,6 +75,7 @@ def stop_processes():
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 print(f"Process {pid} could not be terminated.")
         os.remove(os.path.join(pids_dir, pid_file))
+
 if __name__ == "__main__":
     try:
         start_processes()
