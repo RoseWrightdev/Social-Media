@@ -16,7 +16,7 @@ import { Button } from "../ui/button";
 import { z } from "zod";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { User_TYPE } from '@/lib/types'
+import { User } from '@/lib/types'
 import { createSession } from "@/lib/session"
 import {Endpoint, DecisionTree} from "@/lib/endpoint"
 
@@ -33,7 +33,7 @@ export default function LoginForm() {
   const onSubmit = async (req: z.infer<typeof LoginSchema>) => {
     const tree: DecisionTree = {
       200 : async (res: Response)=> {
-        const user: User_TYPE = await res.json()
+        const user: User = await res.json()
         createSession(user.id)
         router.push('/dashboard')
       },

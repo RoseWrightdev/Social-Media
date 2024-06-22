@@ -20,7 +20,6 @@ func Run() {
 	//router.GET("/database", GetDataBase)
 	router.GET("/user/:id", GetUserById)
 	router.GET("/login/:email/:password", GetLogin)
-	//router.GET("/resetpassword/:email", GetResetPassword)
 
 	//Post
 	router.POST("/register/:email/:username/:password", PostRegister)
