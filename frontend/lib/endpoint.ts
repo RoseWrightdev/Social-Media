@@ -2,7 +2,7 @@ type HTTPVerb = "GET" | "POST" | "PUT" | "DELETE" ;
 type Request<T> = T & Record<string, string | number>;
 type Status = number;
 
-export type DecisionTree = (Record<Status, Function> & { [key: number]: Function }) | void;
+export type DecisionTree = (Record<Status, Function> & { [key: number]: Function }) | null;
 
 export class Endpoint<request> {
   verb: HTTPVerb;
