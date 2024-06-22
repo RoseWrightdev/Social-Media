@@ -5,3 +5,6 @@
 /backend/python/.idea
 /backend/python/.venv
 /backend/python/__pycache__
+
+# dev server process ids
+pids
