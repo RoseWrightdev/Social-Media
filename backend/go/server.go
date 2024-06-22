@@ -17,7 +17,7 @@ func Run() {
 	router.Use(CORSMiddleware())
 
 	//Get
-	router.GET("/database", GetDataBase)
+	//router.GET("/database", GetDataBase)
 	router.GET("/user/:id", GetUserById)
 	router.GET("/login/:email/:password", GetLogin)
 	//router.GET("/resetpassword/:email", GetResetPassword)
