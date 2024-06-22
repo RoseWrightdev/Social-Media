@@ -78,7 +78,6 @@ def stop_processes():
 if __name__ == "__main__":
     try:
         start_processes()
-        # Add any other main execution functions here
     except KeyboardInterrupt:
         stop_processes()
         print("\nScript terminated by user. Exiting...")
