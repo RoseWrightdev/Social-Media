@@ -6,9 +6,17 @@ import threading
 import psutil
 
 def handle_output(process, identifier):
+    colors = {
+        "Go  ": "\033[94m",  # Blue
+        "Next": "\033[92m",  # Green
+    }
+    reset_color = "\033[0m"  # Resets the color to default
+
+    color = colors.get(identifier, "\033[0m")
+
     for line in iter(process.stdout.readline, ''):
         if line:
-            sys.stdout.write(f"{identifier}: {line}")
+            sys.stdout.write(f"{color}{identifier}:{reset_color} {line}")
         else:
             break
     process.stdout.close()
