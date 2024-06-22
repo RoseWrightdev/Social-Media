@@ -26,7 +26,7 @@ export class Endpoint<request> {
   }
 
   async Exec() {
-      let formattedValues = Object.values(this.req).filter(value => value != null).join("/");
+      const formattedValues = Object.values(this.req).filter(value => value != null).join("/");
       try {
         const res = await fetch(`http://localhost:8080/${this.route}/${formattedValues}`, { method: this.verb, cache: this.cache ? "no-store" : "default" });
         return this.handleStatusCodes(res.status, res);
