@@ -47,7 +47,12 @@ def start_processes():
 
     # Start the Next.js development server and handle its output in a separate thread
     os.chdir(os.path.join(base_dir, "frontend"))
-    next_process = subprocess.Popen(["C:\\Program Files\\nodejs\\npm.cmd", "run", "dev"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
+    next_process = subprocess.Popen(
+        ["C:\\Program Files\\nodejs\\npm.cmd", "run", "dev"],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, universal_newlines=True,
+        bufsize=1
+    )
     next_thread = threading.Thread(target=handle_output, args=(next_process, "Next"))
     next_thread.start()
 
