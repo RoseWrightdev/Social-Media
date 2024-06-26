@@ -2,7 +2,7 @@
 import { getUserById } from "@/lib/utils";
 import { verifySession } from "@/lib/dataAccessLayer";
 import { User } from "@/lib/types";
-
+import WriteForm from "@/components/dashboard/writeForm";
 
 
 export default async function Page() { 
@@ -13,7 +13,7 @@ export default async function Page() {
   // const 
   return (
    <main>
-    
+    <WriteForm/>
    </main>
   );
 }

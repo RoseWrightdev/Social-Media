@@ -1,6 +1,5 @@
 import Link from "next/link"
-import { FaGear } from "react-icons/fa6";
-import { FaCircleUser } from "react-icons/fa6";
+import { FaGear, FaCircleUser } from "react-icons/fa6";
 import Image from "next/image";
 import LogoImg from "@/public/Logo.png"
 import { verifySession } from "@/lib/dataAccessLayer";
