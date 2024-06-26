@@ -13,7 +13,7 @@ export default async function Page() {
   // const 
   return (
    <main>
-    main
+    
    </main>
   );
 }
