@@ -238,3 +238,15 @@ func PostUpdatePassword(c *gin.Context) {
 	}
 	c.IndentedJSON(http.StatusOK, gin.H{})
 }
+
+func PostUploadProfilePicture(c *gin.Context){
+	
+}
+
+func PostUploadImageAttachment(c *gin.Context){
+
+}
+
+func PostUploadVideoAttachment(c *gin.Context){
+
+}

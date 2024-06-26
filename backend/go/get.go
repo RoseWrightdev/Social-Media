@@ -98,3 +98,19 @@ func GetLogin(c *gin.Context) {
 
 	c.IndentedJSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
 }
+
+func GetPosts(c *gin.Context) {
+
+}
+
+func GetProfilePicture(c *gin.Context) {
+
+}
+
+func GetImageAttachment(c *gin.Context) {
+	
+}
+
+func GetVideoAttachment(c *gin.Context) {
+	
+}
