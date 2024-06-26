@@ -8,7 +8,7 @@ export default function Layout({children}: {children: React.ReactNode}) {
       <div className="flex flex-col w-[25dvw] items-end p-2">
         <Logo/>
           <span className="mt-6 mb-6">
-            <ProfilePicture/>
+            <ProfilePicture />
           </span>
           <Settings/>
       </div>
