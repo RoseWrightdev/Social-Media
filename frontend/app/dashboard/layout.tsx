@@ -10,7 +10,7 @@ export default function Layout({children}: {children: React.ReactNode}) {
             <ProfilePicture />
           </span>
           <Settings/>
-          <div className="absolute bottom-2">
+          <div className="sticky bottom-2">
             <Logout/> 
           </div>
       </div>
