@@ -27,7 +27,8 @@ export default function ResetPasswordForm() {
     },
   });
 
-  const onSubmit = async (email: z.infer<typeof EmailSchema>) => {
+  const onSubmit = async (unsanitizedEmail: z.infer<typeof EmailSchema>) => {
+    const email = EmailSchema.parse(unsanitizedEmail)
     const tree: DecisionTree = {
       200 : ()=> router.push("/login"), 
     }

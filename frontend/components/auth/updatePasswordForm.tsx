@@ -28,7 +28,8 @@ export default function UpdatePasswordForm({ token }: { token: string }) {
     },
   });
 
-  const onSubmit = async (password: z.infer<typeof PasswordSchema>) => {
+  const onSubmit = async (unsanitziedPassword: z.infer<typeof PasswordSchema>) => {
+    const password = PasswordSchema.parse(unsanitziedPassword)
     const tree: DecisionTree = {
       200 : ()=> {router.push("/login")},
       400 : ()=> {throw new Error("400")}, 

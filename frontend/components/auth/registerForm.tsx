@@ -32,7 +32,8 @@ export default function RegisterForm() {
     },
   });
 
-  const onSubmit = async (req: z.infer<typeof RegisterSchema>) => {
+  const onSubmit = async (unsanitizedReq: z.infer<typeof RegisterSchema>) => {
+    const req = RegisterSchema.parse(unsanitizedReq)
     const tree: DecisionTree = {
       200 : async (res: Response)=> {
         const user: User = await res.json()

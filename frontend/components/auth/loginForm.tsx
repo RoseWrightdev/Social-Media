@@ -30,7 +30,9 @@ export default function LoginForm() {
     },
   });
 
-  const onSubmit = async (req: z.infer<typeof LoginSchema>) => {
+  const onSubmit = async (unsanitizedReq: z.infer<typeof LoginSchema>) => {
+    const req = LoginSchema.parse(unsanitizedReq)
+    
     const tree: DecisionTree = {
       200 : async (res: Response)=> {
         const user: User = await res.json()
