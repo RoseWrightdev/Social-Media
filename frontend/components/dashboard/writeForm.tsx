@@ -10,10 +10,7 @@ export default function WriteFrom() {
   const [text, setText] = useState('');
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const charecterLeft = 256 - text.length
-
-
   useAutosizeTextArea(textAreaRef.current, text);
-
   const handleChange = (evt: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = evt.target?.value;
     setText(val);
@@ -29,9 +26,9 @@ export default function WriteFrom() {
               className="w-full text-2xl rounded-2xl pt-6 pb-4 px-5 select-none placeholder:italic placeholder:text-slate-500 resize-none placeholder:font-thin outline-none"
               rows={1}
               onChange={handleChange}
-              value={text}
               ref={textAreaRef}
-              />
+              value={text}
+            />
           </div>
         </div>
         <div className="mt-2 flex justify-between">
