@@ -4,11 +4,13 @@ import { useState, useRef } from "react";
 import { Button } from "../ui/button"
 import { FaAngleRight, FaPlus } from "react-icons/fa6";
 import useAutosizeTextArea from "@/lib/hooks/useAutosizeTextArea"
+import CharecterCount from "./CharecterCount";
 
 export default function WriteFrom() {
   const [text, setText] = useState('');
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
-  let length = text.length
+  const charecterLeft = 256 - text.length
+
 
   useAutosizeTextArea(textAreaRef.current, text);
 
@@ -32,7 +34,7 @@ export default function WriteFrom() {
               />
           </div>
         </div>
-        <div className="mt-2">
+        <div className="mt-2 flex">
           <Button className="rounded-lg bg-white border-2 border-slate-950 hover:bg-slate-100" onClick={()=> console.log(text)}>
             <FaPlus className="h-8 text-slate-950"/>
           </Button>
@@ -41,7 +43,7 @@ export default function WriteFrom() {
               <FaAngleRight className="h-8 text-slate-950"/>
             </Button>
           </span>
-          <span className="">{length}</span>
+            <CharecterCount charectersLeft={charecterLeft} totalCharecters={256}/>
         </div>
       </div>   
     </>
