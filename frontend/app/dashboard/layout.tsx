@@ -10,12 +10,12 @@ export default function Layout({children}: {children: React.ReactNode}) {
             <ProfilePicture />
           </span>
           <Settings/>
-          <div className="sticky bottom-2">
+          <div className="absolute bottom-8">
             <Logout/> 
           </div>
       </div>
-      <div className="w-[50dvw] pt-12">{children}</div>
-      <div className="flex flex-col w-[25dvw] pt-12">
+        <div className="w-[50dvw] pt-12">{children}</div>
+        <div className="flex flex-col w-[25dvw] pt-12">
       </div>
     </div>
   )
