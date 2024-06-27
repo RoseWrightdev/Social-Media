@@ -19,8 +19,8 @@ export default function WriteFrom() {
 
   return (
     <>
-      <div className="flex">
-        <div className="mx-4 w-full">
+      <div className="flex flex-col">
+        <div className="w-full">
           <div className="border-[0.5px] rounded-2xl">
             <textarea
               placeholder="What do you think?"
