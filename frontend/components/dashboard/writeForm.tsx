@@ -24,7 +24,7 @@ export default function WriteFrom() {
           <div className="border-[0.5px] rounded-2xl">
             <textarea
               placeholder="What do you think?"
-              className="w-full text-2xl rounded-2xl pt-6 pb-4 px-5 select-none placeholder:italic placeholder:font-thin outline-none"
+              className="w-full text-2xl rounded-2xl pt-6 pb-4 px-5 select-none placeholder:italic resize-none placeholder:font-thin outline-none"
               rows={1}
               onChange={handleChange}
               value={text}
@@ -32,15 +32,14 @@ export default function WriteFrom() {
               />
           </div>
         </div>
-        <div className="my-auto">
+        <div className="">
           <Button className=" rounded-t-lg" onClick={()=> console.log(text)}>
             <FaPlus className="h-8"/>
           </Button>
           <Button className=" rounded-b-lg" onClick={()=> console.log(text)}>
            <FaAngleRight className="h-8"/>
           </Button>
-          <div className="text-center">{length}</div>
-
+          <span className="">{length}</span>
         </div>
       </div>   
     </>
