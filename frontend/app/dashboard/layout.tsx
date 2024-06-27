@@ -14,7 +14,7 @@ export default function Layout({children}: {children: React.ReactNode}) {
             <Logout/> 
           </div>
       </div>
-        <div className="w-[50dvw] pt-12">{children}</div>
+        <div className="w-[50dvw] pt-12 mx-8">{children}</div>
         <div className="flex flex-col w-[25dvw] pt-12">
       </div>
     </div>
