@@ -8,6 +8,7 @@ import useAutosizeTextArea from "@/lib/hooks/useAutosizeTextArea"
 export default function WriteFrom() {
   const [text, setText] = useState('');
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  let length = text.length
 
   useAutosizeTextArea(textAreaRef.current, text);
 
@@ -32,12 +33,14 @@ export default function WriteFrom() {
           </div>
         </div>
         <div className="my-auto">
-          <Button className=" my rounded-t-lg" onClick={()=> console.log(text)}>
+          <Button className=" rounded-t-lg" onClick={()=> console.log(text)}>
             <FaPlus className="h-8"/>
           </Button>
           <Button className=" rounded-b-lg" onClick={()=> console.log(text)}>
            <FaAngleRight className="h-8"/>
           </Button>
+          <div className="text-center">{length}</div>
+
         </div>
       </div>   
     </>
