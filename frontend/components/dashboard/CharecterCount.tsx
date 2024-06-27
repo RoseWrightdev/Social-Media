@@ -28,7 +28,7 @@ export default function CharecterCount({ charectersLeft, totalCharecters }: Prop
   return (
     <>
       <span className="flex">
-        <svg height={size} width={size} style={{transform: 'rotate(-90deg)'}} className="my-auto">
+        <svg height={size} width={size} style={{transform: 'rotate(-90deg)'}}>
           <circle
             cx={xy}
             cy={xy}
@@ -44,7 +44,7 @@ export default function CharecterCount({ charectersLeft, totalCharecters }: Prop
         {
           charectersLeft < 11
           ?
-            <div style={{ fontSize: size / 2, color: color }} className="font-black ml-2">
+            <div style={{ fontSize: size / 2, color: color }} className="font-black ml-2 my-auto">
               {charectersLeft}
             </div>
           :

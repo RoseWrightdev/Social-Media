@@ -34,16 +34,18 @@ export default function WriteFrom() {
               />
           </div>
         </div>
-        <div className="mt-2 flex">
-          <Button className="rounded-lg bg-white border-2 border-slate-950 hover:bg-slate-100" onClick={()=> console.log(text)}>
-            <FaPlus className="h-8 text-slate-950"/>
-          </Button>
-          <span className="mx-2">
+        <div className="mt-2 flex justify-between">
+          <div className="flex">
             <Button className="rounded-lg bg-white border-2 border-slate-950 hover:bg-slate-100" onClick={()=> console.log(text)}>
-              <FaAngleRight className="h-8 text-slate-950"/>
+              <FaPlus className="h-8 text-slate-950"/>
             </Button>
-          </span>
-            <CharecterCount charectersLeft={charecterLeft} totalCharecters={256}/>
+            <span className="mx-2 my-auto">
+              <CharecterCount charectersLeft={charecterLeft} totalCharecters={256}/>
+            </span>
+          </div>
+          <Button className="rounded-lg bg-white border-2 border-slate-950 hover:bg-slate-100" onClick={()=> console.log(text)}>
+            <FaAngleRight className="h-8 text-slate-950"/>
+          </Button>
         </div>
       </div>   
     </>
