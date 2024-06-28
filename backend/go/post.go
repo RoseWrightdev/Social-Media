@@ -1,13 +1,15 @@
 package main
 
 import (
-	"database/sql"
-	"net/http"
-	"time"
-	"log"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
+	"log"
+	"net/http"
 	"os"
+	"time"
+	"path/filepath"
+	"fmt"
 
 	"github.com/joho/godotenv"
 	gomail "gopkg.in/mail.v2"
@@ -200,6 +202,7 @@ func sendEmail(token string, toEmail string, c *gin.Context) {
 
 // PostUpdatePassword handles the POST request to /updatePassword
 // It updates the password of the user with the token
+
 func PostUpdatePassword(c *gin.Context) {
 	var token = c.Param("token")
 	var password = c.Param("password")
@@ -237,16 +240,68 @@ func PostUpdatePassword(c *gin.Context) {
 		return
 	}
 	c.IndentedJSON(http.StatusOK, gin.H{})
-}
+	}
 
-func PostUploadProfilePicture(c *gin.Context){
+
+func PostPosts(c *gin.Context) {
+	var parentid = c.Param("id")
+	var fileType = c.Param("type")
+	var text = c.Param("textcontent")
 	
+	//connect to the database
+	db, err := Connect()
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+	defer db.Close()
+	var postid string
+	err = db.QueryRow("INSERT INTO posts (parent_id, text_content) VALUES ($1, $2) RETURNING id", parentid, text).Scan(&postid)
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+
+	checkDataDir(parentid, fileType)
+
 }
 
-func PostUploadImageAttachment(c *gin.Context){
 
-}
+func checkDataDir(parentid string, fileType string) error {
+	dataDir := "./data"
+	parentDir := filepath.Join(dataDir, parentid)
+	var fileTypeDir string
 
-func PostUploadVideoAttachment(c *gin.Context){
+	// Check if ./data dir exists, if not create it
+	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+			if err := os.Mkdir(dataDir, 0755); err != nil {
+					return fmt.Errorf("failed to create data directory: %w", err)
+			}
+	}
 
+	// Check if ./data/parentid dir exists, if not create it
+	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+			if err := os.Mkdir(parentDir, 0755); err != nil {
+					return fmt.Errorf("failed to create parent directory: %w", err)
+			}
+	}
+
+	// Determine the type of directory to check/create based on fileType
+	switch fileType {
+	case "video":
+			fileTypeDir = filepath.Join(parentDir, "video")
+	case "photo":
+			fileTypeDir = filepath.Join(parentDir, "photo")
+	default:
+			return fmt.Errorf("unsupported file type: %s", fileType)
+	}
+
+	// Check if ./data/parentid/fileType dir exists, if not create it
+	if _, err := os.Stat(fileTypeDir); os.IsNotExist(err) {
+			if err := os.Mkdir(fileTypeDir, 0755); err != nil {
+					return fmt.Errorf("failed to create fileType directory: %w", err)
+			}
+	}
+
+	return nil
 }

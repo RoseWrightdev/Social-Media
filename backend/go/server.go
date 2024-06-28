@@ -19,24 +19,18 @@ func Run() {
 	//Get
 	router.GET("/user/:id", GetUserById)
 	router.GET("/login/:email/:password", GetLogin)
-	router.GET("/posts", GetPosts)
 	router.GET("/attachment/image/:postid", GetImageAttachment)
 	router.GET("/attachment/video/:postid", GetVideoAttachment)
 	router.GET("/profilepicture/:userid", GetProfilePicture)
 
 	//Post
 	router.POST("/register/:email/:username/:password", PostRegister)
-	//resetpassword checks if the email exists in the database
-	// if the email exists it attaches a token to the user account
-	// sends a reset password email with that token
-	// the user can then use the token to update their password
 	router.POST("/resetpassword/:email", PostResetPassword)
-	//updatepassword checks if the token exists in the database
-	// if the token exists it updates the password for the user account
 	router.POST("/updatepassword/:token/:password", PostUpdatePassword)
-	router.POST("/upload/profilepicture/:userid/:image", PostUploadProfilePicture)
-	router.POST("/upload/imageattachment/:userid/:image", PostUploadImageAttachment)
-	router.POST("/upload/videoattachment/:userid/:video", PostUploadVideoAttachment)
+	// router.POST("/upload/profilepicture/:userid/:image", PostUploadProfilePicture)
+	// router.POST("/upload/imageattachment/:userid/:image", PostUploadImageAttachment)
+	// router.POST("/upload/videoattachment/:userid/:video", PostUploadVideoAttachment)
+	router.POST("/posts/:type/:id/:textcontent", PostPosts)
 
 	router.Run("localhost:8080")
 }
