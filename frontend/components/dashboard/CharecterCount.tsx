@@ -42,7 +42,7 @@ export default function CharecterCount({ charectersLeft, totalCharecters }: Prop
           />
         </svg>
         {
-          charectersLeft < 11
+          charectersLeft < 26
           ?
             <div style={{ fontSize: size / 2, color: color }} className="font-black ml-2 my-auto">
               {charectersLeft}
