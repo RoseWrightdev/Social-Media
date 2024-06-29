@@ -136,7 +136,6 @@ func PostResetPassword(c *gin.Context) {
 
 }
 
-
 func generateResetToken() string {
 	// create token
 	resetToken := make([]byte, 31)
@@ -168,7 +167,6 @@ func tokenExpire(resetToken string, timeUntilExpriation time.Duration) (error) {
 	}
 	return nil
 }
-
 
 func addRestTokenToDatabase(token string, userId string, db *sql.DB) ([]byte, error) {
 	_, err := db.Exec("UPDATE USERS SET reset_token = $1 WHERE id = $2", token, userId)
@@ -241,7 +239,7 @@ func PostUpdatePassword(c *gin.Context) {
 		return
 	}
 	c.IndentedJSON(http.StatusOK, gin.H{})
-	}
+}
 
 
 func PostPosts(c *gin.Context) {
