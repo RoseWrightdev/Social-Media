@@ -4,6 +4,10 @@ export default function Page() {
   return (
    <main>
     <WriteForm/>
+    <br />
+    <hr />
+    <br />
+    
    </main>
   );
 }

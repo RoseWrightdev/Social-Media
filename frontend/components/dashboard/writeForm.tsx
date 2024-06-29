@@ -25,6 +25,7 @@ export default function WriteFrom() {
               placeholder="What do you think?"
               className="w-full text-2xl rounded-2xl pt-6 pb-4 px-5 select-none placeholder:italic placeholder:text-slate-500 resize-none placeholder:font-thin outline-none"
               rows={1}
+              maxLength={281}
               onChange={handleChange}
               ref={textAreaRef}
               value={text}
