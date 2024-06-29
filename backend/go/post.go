@@ -4,12 +4,13 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
-	"time"
 	"path/filepath"
-	"fmt"
+	"time"
 
 	"github.com/joho/godotenv"
 	gomail "gopkg.in/mail.v2"
@@ -244,9 +245,14 @@ func PostUpdatePassword(c *gin.Context) {
 
 
 func PostPosts(c *gin.Context) {
+	// get paramas
 	var parentid = c.Param("id")
 	var fileType = c.Param("type")
 	var text = c.Param("textcontent")
+
+	if fileType != "photo" && fileType != "video" {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "unsupported file type param"})
+	}
 	
 	//connect to the database
 	db, err := Connect()
@@ -255,15 +261,64 @@ func PostPosts(c *gin.Context) {
 		return
 	}
 	defer db.Close()
+
+	//insert, return id
 	var postid string
+
 	err = db.QueryRow("INSERT INTO posts (parent_id, text_content) VALUES ($1, $2) RETURNING id", parentid, text).Scan(&postid)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{})
 		return
 	}
 
-	checkDataDir(parentid, fileType)
+	// get file from req
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Could not get uploaded file"})
+		return
+	}
+	
+	// open file from req
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Could not open the file"})
+		return
+	}
+	defer file.Close()
+	
+	// Extract the file extension from the original file name
+	fileExt := filepath.Ext(fileHeader.Filename)
 
+	// Generate new file name using postid and original file extension
+	fileName := postid + fileExt
+
+	// Check if the data and sub dirs exist
+	err = checkDataDir(parentid, fileType)
+	if err != nil {
+		panic(err)
+	}
+
+	var path = "./data/" + parentid + "/" + fileType
+
+	// Specify the directory where the file should be saved, adjust the path as needed
+	savePath := filepath.Join(path, fileName)
+	// Create a new file in the desired directory
+	outFile, err := os.Create(savePath)
+	if err != nil {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Could not create a file on the server"})
+			return
+	}
+	defer outFile.Close()
+
+	// Copy the contents of the uploaded file to the new file
+	_, err = io.Copy(outFile, file)
+	if err != nil {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Failed to save the file"})
+			return
+	}
+
+	// return 200
+	c.IndentedJSON(http.StatusOK, gin.H{})
 }
 
 
