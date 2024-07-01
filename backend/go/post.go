@@ -243,13 +243,23 @@ func PostUpdatePassword(c *gin.Context) {
 
 
 func PostPosts(c *gin.Context) {
-	// get paramas
-	var parentid = c.Param("id")
-	var fileType = c.Param("type")
-	var text = c.Param("textcontent")
+	
+	type RequestBody struct {
+    ParentId     string `json:"id"`
+    TextContent  string `json:"text"`
+    ContentType  string `json:"type"`
+	}
 
-	if fileType != "photo" && fileType != "video" {
-		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "unsupported file type param"})
+	
+	var requestBody RequestBody
+	
+	if err := c.BindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if requestBody.ContentType != "photo" && requestBody.ContentType != "video" {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "unsupported file type"})
 	}
 	
 	//connect to the database
@@ -263,7 +273,7 @@ func PostPosts(c *gin.Context) {
 	//insert, return id
 	var postid string
 
-	err = db.QueryRow("INSERT INTO posts (parent_id, text_content) VALUES ($1, $2) RETURNING id", parentid, text).Scan(&postid)
+	err = db.QueryRow("INSERT INTO posts (parent_id, text_content) VALUES ($1, $2) RETURNING id", requestBody.ParentId, requestBody.TextContent).Scan(&postid)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{})
 		return
@@ -291,12 +301,12 @@ func PostPosts(c *gin.Context) {
 	fileName := postid + fileExt
 
 	// Check if the data and sub dirs exist
-	err = checkDataDir(parentid, fileType)
+	err = checkDataDir(requestBody.ParentId, requestBody.ContentType)
 	if err != nil {
 		panic(err)
 	}
 
-	var path = "./data/" + parentid + "/" + fileType
+	var path = "./data/" + requestBody.ParentId + "/" + requestBody.ContentType
 
 	// Specify the directory where the file should be saved, adjust the path as needed
 	savePath := filepath.Join(path, fileName)
@@ -320,9 +330,9 @@ func PostPosts(c *gin.Context) {
 }
 
 
-func checkDataDir(parentid string, fileType string) error {
+func checkDataDir(id string, fileType string) error {
 	dataDir := "./data"
-	parentDir := filepath.Join(dataDir, parentid)
+	parentDir := filepath.Join(dataDir, id)
 	var fileTypeDir string
 
 	// Check if ./data dir exists, if not create it
@@ -332,7 +342,7 @@ func checkDataDir(parentid string, fileType string) error {
 			}
 	}
 
-	// Check if ./data/parentid dir exists, if not create it
+	// Check if ./data/requestBody.id dir exists, if not create it
 	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
 			if err := os.Mkdir(parentDir, 0755); err != nil {
 					return fmt.Errorf("failed to create parent directory: %w", err)
@@ -349,7 +359,7 @@ func checkDataDir(parentid string, fileType string) error {
 			return fmt.Errorf("unsupported file type: %s", fileType)
 	}
 
-	// Check if ./data/parentid/fileType dir exists, if not create it
+	// Check if ./data/requestBody.id/fileType dir exists, if not create it
 	if _, err := os.Stat(fileTypeDir); os.IsNotExist(err) {
 			if err := os.Mkdir(fileTypeDir, 0755); err != nil {
 					return fmt.Errorf("failed to create fileType directory: %w", err)

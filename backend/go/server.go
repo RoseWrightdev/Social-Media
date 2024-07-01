@@ -30,7 +30,7 @@ func Run() {
 	// router.POST("/upload/profilepicture/:userid/:image", PostUploadProfilePicture)
 	// router.POST("/upload/imageattachment/:userid/:image", PostUploadImageAttachment)
 	// router.POST("/upload/videoattachment/:userid/:video", PostUploadVideoAttachment)
-	router.POST("/posts/:type/:id/:textcontent", PostPosts)
+	router.POST("/posts", PostPosts)
 
 	router.Run("localhost:8080")
 }
