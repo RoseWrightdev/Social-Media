@@ -60,3 +60,11 @@ export default async function GET_Database() {
   );
 };
 ```
+
+
+## known issues
+
+refactor RESTAPIS to use request body instead of url-params
+
+refactor auth system to check database for some value to ensure auth is revokable (do this with a redis cache?)
+
