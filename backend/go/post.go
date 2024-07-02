@@ -294,19 +294,17 @@ if err != nil {
   c.IndentedJSON(http.StatusOK, gin.H{"code":"200"})
 }
 
-// Revised processFileData function to accept and write file content
 func processFileData(postid string, contentType string, fileContent []byte) error {
-	// Open file from data
-	file, err := os.CreateTemp("", postid)
-	if err != nil {
-			return fmt.Errorf("could not create temporary file: %w", err)
-	}
-	defer file.Close()
+  // Open or create the temporary file
+  file, err := os.CreateTemp("", postid)
+  if err != nil {
+    return fmt.Errorf("could not create temporary file: %w", err)
+  }
 
-	// Write the decoded file content to the temporary file
-	if _, err := file.Write(fileContent); err != nil {
-			return fmt.Errorf("failed to write to temporary file: %w", err)
-	}
+  // Write the decoded file content to the temporary file
+  if _, err := file.Write(fileContent); err != nil {
+    return fmt.Errorf("failed to write to temporary file: %w", err)
+  }
 
   // Check if the data and sub dirs exist
   err = checkDataDir(contentType) 
@@ -319,6 +317,7 @@ func processFileData(postid string, contentType string, fileContent []byte) erro
 
   // Construct the filename based on contentType and postid
   var filename string
+
   if contentType == "videos" {
     filename = postid + ".mp4"
   } else if contentType == "photos" {
@@ -335,7 +334,12 @@ func processFileData(postid string, contentType string, fileContent []byte) erro
     return fmt.Errorf("failed to copy temporary file: %w", err)
   }
 
-  // Delete the temporary file after copying
+  // Close the temporary file before deleting it
+  if err := file.Close(); err != nil {
+    return fmt.Errorf("failed to close temporary file: %w", err)
+  }
+
+  // Now attempt to delete the temporary file
   if err := os.Remove(file.Name()); err != nil {
     return fmt.Errorf("failed to delete temporary file: %w", err)
   }
