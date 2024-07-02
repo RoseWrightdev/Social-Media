@@ -3,9 +3,9 @@ package main
 import (
 	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -243,128 +243,104 @@ func PostUpdatePassword(c *gin.Context) {
 
 
 func PostPosts(c *gin.Context) {
-	
-	type RequestBody struct {
-    ParentId     string `json:"id"`
+  type RequestBody struct {
+    ParentId    string `json:"id"`
     TextContent  string `json:"text"`
     ContentType  string `json:"type"`
-	}
+    File         string `json:"file"`
+  }
 
-	
-	var requestBody RequestBody
-	
-	if err := c.BindJSON(&requestBody); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+  var requestBody RequestBody
+
+  if err := c.BindJSON(&requestBody); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+  }
+
+  if requestBody.ContentType != "photos" && requestBody.ContentType != "videos" {
+    c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "unsupported file type"})
+    return
+  }
+
+  // Connect to the database
+  db, err := Connect()
+  if err != nil {
+    c.IndentedJSON(http.StatusInternalServerError, gin.H{})
+    return
+  }
+  defer db.Close()
+
+  // Insert into database
+  var postid string
+  err = db.QueryRow("INSERT INTO posts (parent_id, text_content) VALUES ($1, $2) RETURNING id", requestBody.ParentId, requestBody.TextContent).Scan(&postid)
+  if err != nil {
+    c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+    return
+  }
+
+	// Decode Base64 data
+	_, err = base64.StdEncoding.DecodeString(requestBody.File)
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid file data"})
 		return
 	}
 
-	if requestBody.ContentType != "photo" && requestBody.ContentType != "video" {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "unsupported file type"})
-	}
-	
-	//connect to the database
-	db, err := Connect()
-	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, gin.H{})
-		return
-	}
-	defer db.Close()
+  // Process the file data
+	err = processFileData(postid, requestBody.ContentType)
+  if err != nil {
+    c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+    return
+  }
 
-	//insert, return id
-	var postid string
-
-	err = db.QueryRow("INSERT INTO posts (parent_id, text_content) VALUES ($1, $2) RETURNING id", requestBody.ParentId, requestBody.TextContent).Scan(&postid)
-	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, gin.H{})
-		return
-	}
-
-	// get file from req
-	fileHeader, err := c.FormFile("file")
-	if err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Could not get uploaded file"})
-		return
-	}
-	
-	// open file from req
-	file, err := fileHeader.Open()
-	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Could not open the file"})
-		return
-	}
-	defer file.Close()
-	
-	// Extract the file extension from the original file name
-	fileExt := filepath.Ext(fileHeader.Filename)
-
-	// Generate new file name using postid and original file extension
-	fileName := postid + fileExt
-
-	// Check if the data and sub dirs exist
-	err = checkDataDir(requestBody.ParentId, requestBody.ContentType)
-	if err != nil {
-		panic(err)
-	}
-
-	var path = "./data/" + requestBody.ParentId + "/" + requestBody.ContentType
-
-	// Specify the directory where the file should be saved, adjust the path as needed
-	savePath := filepath.Join(path, fileName)
-	// Create a new file in the desired directory
-	outFile, err := os.Create(savePath)
-	if err != nil {
-			c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Could not create a file on the server"})
-			return
-	}
-	defer outFile.Close()
-
-	// Copy the contents of the uploaded file to the new file
-	_, err = io.Copy(outFile, file)
-	if err != nil {
-			c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": "Failed to save the file"})
-			return
-	}
-
-	// return 200
-	c.IndentedJSON(http.StatusOK, gin.H{})
+  // return 200
+  c.IndentedJSON(http.StatusOK, gin.H{})
 }
 
+func processFileData(postid string, contentType string) error {
+  // Open file from data
+  file, err := os.CreateTemp("", postid+"-*."+contentType)
+  if err != nil {
+    return fmt.Errorf("could not create temporary file: %w", err)
+  }
+  defer file.Close()
 
-func checkDataDir(id string, fileType string) error {
-	dataDir := "./data"
-	parentDir := filepath.Join(dataDir, id)
-	var fileTypeDir string
+  // Check if the data and sub dirs exist
+  err = checkDataDir(postid)
+  if err != nil {
+    return err
+  }
 
-	// Check if ./data dir exists, if not create it
-	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-			if err := os.Mkdir(dataDir, 0755); err != nil {
-					return fmt.Errorf("failed to create data directory: %w", err)
-			}
+  var path = "./data/" + contentType + "/" + postid
+
+  // Specify the directory where the file should be saved
+  savePath := filepath.Join(path, file.Name())
+
+  // Move the temporary file to the desired location
+  err = os.Rename(file.Name(), savePath)
+  if err != nil {
+    return fmt.Errorf("failed to move temporary file: %w", err)
+  }
+
+  return nil
+}
+
+func checkDataDir(id string) error {
+  dataDir := "./data"
+  parentDir := filepath.Join(dataDir, id)
+
+  // Check if ./data dir exists, if not create it
+  if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+	if err := os.Mkdir(dataDir, 0755); err != nil {
+	  return err
 	}
+  }
 
-	// Check if ./data/requestBody.id dir exists, if not create it
-	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-			if err := os.Mkdir(parentDir, 0755); err != nil {
-					return fmt.Errorf("failed to create parent directory: %w", err)
-			}
+  // Check if ./data/requestBody.id dir exists, if not create it
+  if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+	if err := os.Mkdir(parentDir, 0755); err != nil {
+	  return err
 	}
+  }
 
-	// Determine the type of directory to check/create based on fileType
-	switch fileType {
-	case "video":
-			fileTypeDir = filepath.Join(parentDir, "video")
-	case "photo":
-			fileTypeDir = filepath.Join(parentDir, "photo")
-	default:
-			return fmt.Errorf("unsupported file type: %s", fileType)
-	}
-
-	// Check if ./data/requestBody.id/fileType dir exists, if not create it
-	if _, err := os.Stat(fileTypeDir); os.IsNotExist(err) {
-			if err := os.Mkdir(fileTypeDir, 0755); err != nil {
-					return fmt.Errorf("failed to create fileType directory: %w", err)
-			}
-	}
-
-	return nil
+  return nil
 }
