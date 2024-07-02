@@ -276,26 +276,26 @@ func PostPosts(c *gin.Context) {
     return
   }
 
-	// In PostPosts function, decode the file content before calling processFileData
-decodedFileContent, err := base64.StdEncoding.DecodeString(requestBody.File)
-if err != nil {
-    c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid file data"})
-    return
-}
+	// decode the file content before calling processFileData
+	decodedFileContent, err := base64.StdEncoding.DecodeString(requestBody.File)
+	if err != nil {
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid file data"})
+			return
+	}
 
-// Pass the decoded file content to processFileData
-err = processFileData(postid, requestBody.ContentType, decodedFileContent)
-if err != nil {
-    c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-    return
-}
+	// Pass the decoded file content to processFileData
+	err = processFileData(postid, requestBody.ContentType, decodedFileContent)
+	if err != nil {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+	}
 
   // return 200
   c.IndentedJSON(http.StatusOK, gin.H{"code":"200"})
 }
 
 func processFileData(postid string, contentType string, fileContent []byte) error {
-  // Open or create the temporary file
+  // create the temporary file
   file, err := os.CreateTemp("", postid)
   if err != nil {
     return fmt.Errorf("could not create temporary file: %w", err)
@@ -306,14 +306,14 @@ func processFileData(postid string, contentType string, fileContent []byte) erro
     return fmt.Errorf("failed to write to temporary file: %w", err)
   }
 
-  // Check if the data and sub dirs exist
-  err = checkDataDir(contentType) 
+  // Check if the data dir exists
+  err = checkDataDir() 
   if err != nil {
     return err
   }
 
-  // Corrected path construction
-  var path = "./data/" + contentType
+  // path construction
+  var path = "./data/"
 
   // Construct the filename based on contentType and postid
   var filename string
@@ -347,24 +347,14 @@ func processFileData(postid string, contentType string, fileContent []byte) erro
   return nil
 }
 
-func checkDataDir(contentType string) error {
+func checkDataDir() error {
   dataDir := "./data"
-  parentDir := filepath.Join(dataDir, contentType)
-
   // Check if ./data dir exists, if not create it
   if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 		if err := os.Mkdir(dataDir, 0755); err != nil {
 			return err
 		}
   }
-
-  // Check if ./data/contentTpye dir exists, if not create it
-  if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		if err := os.Mkdir(parentDir, 0755); err != nil {
-			return err
-		}
-  }
-
   return nil
 }
 
