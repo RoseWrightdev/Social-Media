@@ -276,31 +276,37 @@ func PostPosts(c *gin.Context) {
     return
   }
 
-	// Decode Base64 data
-	_, err = base64.StdEncoding.DecodeString(requestBody.File)
-	if err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid file data"})
-		return
-	}
+	// In PostPosts function, decode the file content before calling processFileData
+decodedFileContent, err := base64.StdEncoding.DecodeString(requestBody.File)
+if err != nil {
+    c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid file data"})
+    return
+}
 
-  // Process the file data
-	err = processFileData(postid, requestBody.ContentType)
-  if err != nil {
+// Pass the decoded file content to processFileData
+err = processFileData(postid, requestBody.ContentType, decodedFileContent)
+if err != nil {
     c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
     return
-  }
+}
 
   // return 200
   c.IndentedJSON(http.StatusOK, gin.H{"code":"200"})
 }
 
-func processFileData(postid string, contentType string) error {
-  // Open file from data
-  file, err := os.CreateTemp("", postid)
-  if err != nil {
-    return fmt.Errorf("could not create temporary file: %w", err)
-  }
-  defer file.Close()
+// Revised processFileData function to accept and write file content
+func processFileData(postid string, contentType string, fileContent []byte) error {
+	// Open file from data
+	file, err := os.CreateTemp("", postid)
+	if err != nil {
+			return fmt.Errorf("could not create temporary file: %w", err)
+	}
+	defer file.Close()
+
+	// Write the decoded file content to the temporary file
+	if _, err := file.Write(fileContent); err != nil {
+			return fmt.Errorf("failed to write to temporary file: %w", err)
+	}
 
   // Check if the data and sub dirs exist
   err = checkDataDir(contentType) 
@@ -313,9 +319,9 @@ func processFileData(postid string, contentType string) error {
 
   // Construct the filename based on contentType and postid
   var filename string
-  if contentType == "video" {
+  if contentType == "videos" {
     filename = postid + ".mp4"
-  } else if contentType == "photo" {
+  } else if contentType == "photos" {
     filename = postid + ".png"
   } else {
     return fmt.Errorf("unsupported content type: %s", contentType)
