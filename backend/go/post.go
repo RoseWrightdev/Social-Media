@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -244,7 +245,7 @@ func PostUpdatePassword(c *gin.Context) {
 
 func PostPosts(c *gin.Context) {
   type RequestBody struct {
-    ParentId    string `json:"id"`
+    ParentId     string `json:"id"`
     TextContent  string `json:"text"`
     ContentType  string `json:"type"`
     File         string `json:"file"`
@@ -298,10 +299,11 @@ func PostPosts(c *gin.Context) {
 
 func processFileData(postid string, contentType string) error {
   // Open file from data
-  file, err := os.CreateTemp("", postid+"-*."+contentType)
+  file, err := os.CreateTemp("", postid)
   if err != nil {
     return fmt.Errorf("could not create temporary file: %w", err)
   }
+  // Immediately defer the file's closure
   defer file.Close()
 
   // Check if the data and sub dirs exist
@@ -312,35 +314,78 @@ func processFileData(postid string, contentType string) error {
 
   var path = "./data/" + contentType + "/" + postid
 
-  // Specify the directory where the file should be saved
-  savePath := filepath.Join(path, file.Name())
+  // Extract only the filename from the temporary file's full path
+  tempFileName := filepath.Base(file.Name())
 
-  // Move the temporary file to the desired location
-  err = os.Rename(file.Name(), savePath)
-  if err != nil {
-    return fmt.Errorf("failed to move temporary file: %w", err)
+  // Specify the directory where the file should be saved
+  savePath := filepath.Join(path, tempFileName)
+
+  // Copy the temporary file to the desired location
+  if err := copyFile(file.Name(), savePath); err != nil {
+    return fmt.Errorf("failed to copy temporary file: %w", err)
+  }
+
+  // Explicitly close the file before deletion attempt
+  if err := file.Close(); err != nil {
+    return fmt.Errorf("failed to close temporary file: %w", err)
+  }
+
+  // Attempt to delete the file
+  if err := os.Remove(file.Name()); err != nil {
+    return fmt.Errorf("failed to delete temporary file: %w", err)
   }
 
   return nil
 }
 
-func checkDataDir(id string) error {
+func checkDataDir(contentTpye string) error {
   dataDir := "./data"
-  parentDir := filepath.Join(dataDir, id)
+  parentDir := filepath.Join(dataDir, contentTpye)
 
   // Check if ./data dir exists, if not create it
   if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-	if err := os.Mkdir(dataDir, 0755); err != nil {
-	  return err
-	}
+		if err := os.Mkdir(dataDir, 0755); err != nil {
+			return err
+		}
   }
 
-  // Check if ./data/requestBody.id dir exists, if not create it
+  // Check if ./data/contentTpye dir exists, if not create it
   if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-	if err := os.Mkdir(parentDir, 0755); err != nil {
-	  return err
-	}
+		if err := os.Mkdir(parentDir, 0755); err != nil {
+			return err
+		}
   }
 
   return nil
+}
+
+func copyFile(src, dst string) error {
+	// Ensure the destination directory exists
+	dstDir := filepath.Dir(dst)
+	if _, err := os.Stat(dstDir); os.IsNotExist(err) {
+			if err := os.MkdirAll(dstDir, 0755); err != nil {
+					return fmt.Errorf("failed to create destination directory: %w", err)
+			}
+	}
+
+	// Open the source file
+	sourceFile, err := os.Open(src)
+	if err != nil {
+			return err
+	}
+	defer sourceFile.Close()
+
+	// Create the destination file
+	destFile, err := os.Create(dst)
+	if err != nil {
+			return err
+	}
+	defer destFile.Close()
+
+	// Copy the file
+	if _, err := io.Copy(destFile, sourceFile); err != nil {
+			return err
+	}
+
+	return nil
 }
