@@ -85,7 +85,6 @@ func PostRegister(c *gin.Context) {
 
 // PostResetPassword handles the POST request to /resetpassword
 // It generates a token and sends an email to the user with a link to reset the password
-
 func PostResetPassword(c *gin.Context) {
 	var userSubmitedEmail = c.Param("email")
 	if userSubmitedEmail == "" {
@@ -199,10 +198,8 @@ func sendEmail(token string, toEmail string, c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{})
 }
 
-
 // PostUpdatePassword handles the POST request to /updatePassword
 // It updates the password of the user with the token
-
 func PostUpdatePassword(c *gin.Context) {
 	var token = c.Param("token")
 	var password = c.Param("password")
@@ -266,7 +263,7 @@ func PostPosts(c *gin.Context) {
   // Connect to the database
   db, err := Connect()
   if err != nil {
-    c.IndentedJSON(http.StatusInternalServerError, gin.H{})
+    c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
     return
   }
   defer db.Close()
@@ -294,7 +291,7 @@ func PostPosts(c *gin.Context) {
   }
 
   // return 200
-  c.IndentedJSON(http.StatusOK, gin.H{})
+  c.IndentedJSON(http.StatusOK, gin.H{"code":"200"})
 }
 
 func processFileData(postid string, contentType string) error {
@@ -303,34 +300,36 @@ func processFileData(postid string, contentType string) error {
   if err != nil {
     return fmt.Errorf("could not create temporary file: %w", err)
   }
-  // Immediately defer the file's closure
   defer file.Close()
 
   // Check if the data and sub dirs exist
-  err = checkDataDir(postid)
+  err = checkDataDir(contentType) 
   if err != nil {
     return err
   }
 
-  var path = "./data/" + contentType + "/" + postid
+  // Corrected path construction
+  var path = "./data/" + contentType
 
-  // Extract only the filename from the temporary file's full path
-  tempFileName := filepath.Base(file.Name())
+  // Construct the filename based on contentType and postid
+  var filename string
+  if contentType == "video" {
+    filename = postid + ".mp4"
+  } else if contentType == "photo" {
+    filename = postid + ".png"
+  } else {
+    return fmt.Errorf("unsupported content type: %s", contentType)
+  }
 
   // Specify the directory where the file should be saved
-  savePath := filepath.Join(path, tempFileName)
+  savePath := filepath.Join(path, filename)
 
   // Copy the temporary file to the desired location
   if err := copyFile(file.Name(), savePath); err != nil {
     return fmt.Errorf("failed to copy temporary file: %w", err)
   }
 
-  // Explicitly close the file before deletion attempt
-  if err := file.Close(); err != nil {
-    return fmt.Errorf("failed to close temporary file: %w", err)
-  }
-
-  // Attempt to delete the file
+  // Delete the temporary file after copying
   if err := os.Remove(file.Name()); err != nil {
     return fmt.Errorf("failed to delete temporary file: %w", err)
   }
@@ -338,9 +337,9 @@ func processFileData(postid string, contentType string) error {
   return nil
 }
 
-func checkDataDir(contentTpye string) error {
+func checkDataDir(contentType string) error {
   dataDir := "./data"
-  parentDir := filepath.Join(dataDir, contentTpye)
+  parentDir := filepath.Join(dataDir, contentType)
 
   // Check if ./data dir exists, if not create it
   if _, err := os.Stat(dataDir); os.IsNotExist(err) {
