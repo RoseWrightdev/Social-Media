@@ -7,39 +7,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// GetDataBase handles the GET request to /database
-// It returns the first 10 users in the database
-// used for testing purposes
-// func GetDataBase(c *gin.Context) {
-// 	db, err := Connect()
-// 	if err != nil {
-// 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 		return
-// 	}
-// 	defer db.Close()
 
-// 	rows, err := db.Query("SELECT * FROM users LIMIT 10")
-// 	if err != nil {
-// 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 		return
-// 	}
-// 	defer rows.Close()
-
-// 	var users []UsersSchema
-// 	for rows.Next() {
-// 		var user UsersSchema
-// 		err := rows.Scan(&user.Id, &user.Password, &user.Email, &user.Username, &user.ResetToken)
-// 		if err != nil {
-// 			c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 			return
-// 		}
-// 		users = append(users, user)
-// 	}
-// 	c.IndentedJSON(http.StatusOK, users)
-// }
-
-// GetUserById handles the GET request to /user/:id
-// in actual use the function would not return the entirity of the user data
+// fix use req body
 func GetUserById(c *gin.Context) {
 	db, err := Connect()
 	if err != nil {
@@ -66,6 +35,7 @@ func GetUserById(c *gin.Context) {
 
 // GetLogin handles the GET request to /login/:email/:password1
 // it returns the id and password of the user with the specified email
+// fix use req body
 func GetLogin(c *gin.Context) {
 	db, err := Connect()
 	if err != nil {
