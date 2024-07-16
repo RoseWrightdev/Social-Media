@@ -13,18 +13,17 @@ import (
 
 // PostRegister handles the POST request to /register
 // It inserts a new user into the database
-// fix use req body
 
+// 
 func PostRegister(c *gin.Context) {
 	//get values from the request parameters
-	var email, username, password string
-	email = c.Param("email")
-	username = c.Param("username")
-	password = c.Param("password")
-	if email == "" || username == "" || password == "" {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{})
-		return
-	}
+	var json PostRegisterJSON
+
+	if err := c.BindJSON(&json); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+  }
+
 
 	//connect to the database
 	db, err := Connect()
@@ -35,14 +34,14 @@ func PostRegister(c *gin.Context) {
 	defer db.Close()
 
 	//hash the password before insertion
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(json.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{})
 		return
 	}
 
 	//insert the user into the database
-	_, err = db.Exec("INSERT INTO users (username, email, password) VALUES ($1, $2, $3)", username, email, hashedPassword)
+	_, err = db.Exec("INSERT INTO users (username, email, password) VALUES ($1, $2, $3)", json.Username, json.Email, hashedPassword)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok {
 			switch pqErr.Code {
@@ -56,14 +55,15 @@ func PostRegister(c *gin.Context) {
 		return
 	}
 
+	//fix use RETURNING statement to get this value
 	//get the id of the user that was just inserted
-	rows, err := db.Query("SELECT id FROM users WHERE username = $1 AND email = $2 AND password = $3", username, email, hashedPassword)
+	rows, err := db.Query("SELECT id FROM users WHERE username = $1 AND email = $2 AND password = $3", json.Username, json.Email, hashedPassword)
 	if err != nil {
 		c.IndentedJSON(http.StatusNotFound, gin.H{})
 	}
 	defer rows.Close()
 
-	var id Id
+	var id IdJSON
 	for rows.Next() {
 		err := rows.Scan(&id.Id)
 		if err != nil {
@@ -77,14 +77,12 @@ func PostRegister(c *gin.Context) {
 
 // PostResetPassword handles the POST request to /resetpassword
 // It generates a token and sends an email to the user with a link to reset the password
-// fix use req body
-
 func PostResetPassword(c *gin.Context) {
-	var userSubmitedEmail = c.Param("email")
-	if userSubmitedEmail == "" {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{})
-		return
-	}
+	var json EmailJSON
+	if err := c.BindJSON(&json); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+  }
 
 	db, err := Connect()
 	if err != nil {
@@ -93,7 +91,7 @@ func PostResetPassword(c *gin.Context) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT id FROM users WHERE email = $1", userSubmitedEmail)
+	rows, err := db.Query("SELECT id FROM users WHERE email = $1", json.Email)
 	if err != nil {
 		//always return 200 to avoid email fishing
 		c.IndentedJSON(http.StatusOK, gin.H{})
@@ -126,22 +124,19 @@ func PostResetPassword(c *gin.Context) {
 	if err != nil {
 		panic(err)
 	}
-	SendEmail(resetToken, userSubmitedEmail, c)
-
+	SendEmail(resetToken, json.Email, c)
 }
 
 
 // PostUpdatePassword handles the POST request to /updatePassword
 // It updates the password of the user with the token
-// fix use req body
-
 func PostUpdatePassword(c *gin.Context) {
-	var token = c.Param("token")
-	var password = c.Param("password")
-	if token == "" || password == "" {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{})
-		return
-	}
+
+	var json PostUpdatePasswordJSON
+	if err := c.BindJSON(&json); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+  }
 
 	db, err := Connect()
 	if err != nil {
@@ -150,7 +145,7 @@ func PostUpdatePassword(c *gin.Context) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT id FROM users WHERE reset_token = $1", token)
+	rows, err := db.Query("SELECT id FROM users WHERE reset_token = $1", json.Token)
 	if err != nil {
 		c.IndentedJSON(http.StatusNotFound, gin.H{})
 	}
@@ -160,7 +155,7 @@ func PostUpdatePassword(c *gin.Context) {
 	rows.Next()
 	rows.Scan(&userId)
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(json.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{})
 		return
@@ -176,21 +171,14 @@ func PostUpdatePassword(c *gin.Context) {
 
 
 func PostPosts(c *gin.Context) {
-  type RequestBody struct {
-    ParentId     string `json:"id"`
-    TextContent  string `json:"text"`
-    ContentType  string `json:"type"`
-    File         string `json:"file"`
-  }
+  var json PostPostsJSON
 
-  var requestBody RequestBody
-
-  if err := c.BindJSON(&requestBody); err != nil {
+  if err := c.BindJSON(&json); err != nil {
     c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
     return
   }
 
-  if requestBody.ContentType != "photos" && requestBody.ContentType != "videos" {
+  if json.ContentType != "photos" && json.ContentType != "videos" {
     c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "unsupported file type"})
     return
   }
@@ -205,21 +193,21 @@ func PostPosts(c *gin.Context) {
 
   // Insert into database
   var postid string
-  err = db.QueryRow("INSERT INTO posts (parent_id, text_content) VALUES ($1, $2) RETURNING id", requestBody.ParentId, requestBody.TextContent).Scan(&postid)
+  err = db.QueryRow("INSERT INTO posts (parent_id, text_content) VALUES ($1, $2) RETURNING id", json.ParentId, json.TextContent).Scan(&postid)
   if err != nil {
     c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
     return
   }
 
 	// decode the file content before calling ProcessPostAttachmentData
-	decodedFileContent, err := base64.StdEncoding.DecodeString(requestBody.File)
+	decodedFileContent, err := base64.StdEncoding.DecodeString(json.File)
 	if err != nil {
 			c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Invalid file data"})
 			return
 	}
 
 	// Pass the decoded file content to ProcessPostAttachmentData
-	err = ProcessPostAttachmentData(postid, requestBody.ContentType, decodedFileContent)
+	err = ProcessPostAttachmentData(postid, json.ContentType, decodedFileContent)
 	if err != nil {
 			c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

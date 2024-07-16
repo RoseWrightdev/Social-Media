@@ -26,12 +26,18 @@ export class Endpoint<request> {
   }
 
   async Exec() {
-      const formattedValues = Object.values(this.req).filter(value => value != null).join("/");
       try {
-        const res = await fetch(`http://localhost:8080/${this.route}/${formattedValues}`, { method: this.verb, cache: this.cache ? "no-store" : "default" });
+        const res = await fetch(
+        `http://localhost:8080/${this.route}`, 
+        { 
+          method: this.verb,
+          body: JSON.stringify(this.req),
+          cache: this.cache ? "no-store" : "default"
+        }
+      );
         return this.handleStatusCodes(res.status, res);
       } catch (error) {
-        console.error(`Error fetching data: ${error}`);
+        console.error(`Error in ${this.verb}: ${error}, request to server: ${this.req}`);
         throw error;   
     }
   }

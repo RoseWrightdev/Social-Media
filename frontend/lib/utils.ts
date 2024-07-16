@@ -17,7 +17,9 @@ export async function getUserById(id: string) {
   if (session === null) {
     throw new Error("Failed to verify session");
   }
-  const req = await fetch(`${SERVER_PATH}/user/${id}`, { cache: "no-store" });
+
+  const jsonid = {id: id}
+  const req = await fetch(`${SERVER_PATH}/user`, { body: JSON.stringify(jsonid), cache: "no-store", method: "POST"});
 
   if (!req.ok) {
     throw new Error("Failed to fetch data");

@@ -52,7 +52,7 @@ export default function LoginForm() {
       500 : ()=> {throw new Error("500")},
       502 : ()=> {throw new Error("502")}, 
     }
-  const getLogin = new Endpoint("GET", "login", req, tree)
+  const getLogin = new Endpoint("POST", "login", req, tree)
   await getLogin.Exec()
   }
 

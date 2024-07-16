@@ -11,17 +11,17 @@ func Run() {
 		return cors.New(cors.Config{
 			AllowOrigins: []string{"http://localhost:3000"},
 			AllowMethods: []string{"GET", "POST", "PUT", "DELETE"},
-			AllowHeaders: []string{"Content-Type", "Authorization"},
+			AllowHeaders: []string{"Content-Type", "Authorization", "application/json"},
 		})
 	}
 	router.Use(CORSMiddleware())
 
 	//Get
-	router.GET("/user/:id", GetUserById)
-	router.GET("/login/:email/:password", GetLogin)
-	router.GET("/attachment/image/:postid", GetImageAttachment)
-	router.GET("/attachment/video/:postid", GetVideoAttachment)
-	router.GET("/profilepicture/:userid", GetProfilePicture)
+	router.POST("/user", PostUserById)
+	router.POST("/login", PostLogin)
+	// router.GET("/attachment/image/:postid", GetImageAttachment)
+	// router.GET("/attachment/video/:postid", GetVideoAttachment)
+	// router.GET("/profilepicture/:userid", GetProfilePicture)
 
 	//Post
 	router.POST("/register/:email/:username/:password", PostRegister)
