@@ -1,9 +1,9 @@
-import WriteForm from "@/components/dashboard/writeForm";
+import PostForm from "@/components/dashboard/postForm";
 
 export default function Page() { 
   return (
    <main>
-    <WriteForm/>
+    <PostForm/>
     <br />
     <hr />
     <br />

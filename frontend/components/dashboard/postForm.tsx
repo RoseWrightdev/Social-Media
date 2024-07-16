@@ -6,7 +6,7 @@ import { FaAngleRight, FaPlus } from "react-icons/fa6";
 import useAutosizeTextArea from "@/lib/hooks/useAutosizeTextArea"
 import CharecterCount from "./CharecterCount";
 
-export default function WriteFrom() {
+export default function PostFrom() {
   const [text, setText] = useState('');
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const charecterLeft = 256 - text.length
