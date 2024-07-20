@@ -13,8 +13,6 @@ import (
 
 // PostRegister handles the POST request to /register
 // It inserts a new user into the database
-
-// 
 func PostRegister(c *gin.Context) {
 	//get values from the request parameters
 	var json PostRegisterJSON
@@ -23,7 +21,6 @@ func PostRegister(c *gin.Context) {
     c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
     return
   }
-
 
 	//connect to the database
 	db, err := Connect()

@@ -16,6 +16,9 @@ func Run() {
 	}
 	router.Use(CORSMiddleware())
 
+	//Get
+	router.GET("/posts", GetPosts)
+
 	//Post
 	router.POST("/user", PostUserById)
 	router.POST("/login", PostLogin)

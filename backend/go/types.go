@@ -50,3 +50,17 @@ type PostUpdatePasswordJSON struct {
 	Token     string `json:"token"`
 	Password  string `json:"password"`
 }
+
+type PostsJSON struct {
+	Id     string `json:"id"`
+	Parent_id  string `json:"parent_id"`
+	Text_content  string `json:"text_content"`
+}
+
+type PostsRes struct {
+	Id     string `json:"id"`
+	Parent_id  string `json:"parent_id"`
+	Text_content  string `json:"text_content"`
+	Endcoded_attatchment  string `json:"endcoded_attatchment"`
+	Extension string `json:"extension"`
+}
