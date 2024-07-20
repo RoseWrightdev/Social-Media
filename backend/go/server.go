@@ -16,20 +16,12 @@ func Run() {
 	}
 	router.Use(CORSMiddleware())
 
-	//Get
+	//Post
 	router.POST("/user", PostUserById)
 	router.POST("/login", PostLogin)
-	// router.GET("/attachment/image/:postid", GetImageAttachment)
-	// router.GET("/attachment/video/:postid", GetVideoAttachment)
-	// router.GET("/profilepicture/:userid", GetProfilePicture)
-
-	//Post
 	router.POST("/register/:email/:username/:password", PostRegister)
 	router.POST("/resetpassword/:email", PostResetPassword)
 	router.POST("/updatepassword/:token/:password", PostUpdatePassword)
-	// router.POST("/upload/profilepicture/:userid/:image", PostUploadProfilePicture)
-	// router.POST("/upload/imageattachment/:userid/:image", PostUploadImageAttachment)
-	// router.POST("/upload/videoattachment/:userid/:video", PostUploadVideoAttachment)
 	router.POST("/posts", PostPosts)
 
 	router.Run("localhost:8080")
