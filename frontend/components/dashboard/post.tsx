@@ -1,23 +1,26 @@
-import type { ProfilePicture_Username } from "@/lib/types"
-import { Suspense } from "react"
 import Image from "next/image";
+import { PostData } from "@/lib/types";
 
-export default function Post(userData: ProfilePicture_Username, text: string, likes: number, imageURI?: string, videoURI?: string, alt?: string) {
-const username = userData.username;
-const profilePictureURI = userData.profilePictureURI;
-const profilePictureAlt = userData.alt;
+export default function Post({textContent, encodedAttachment, fileExtension, postID, parentID}: PostData) {
+  const imageSrc = `data:image/${fileExtension.replace('.', '')};base64,${encodedAttachment}`;
 
   return (
-    <div className="flex flex-col">
-      <div className="flex">
-        <Image src={profilePictureURI} alt={profilePictureAlt} className="rounded-full w-8 h-8 m-2" />
-        <div className="italic text-lg">@{username}</div>
-      </div>
-      <p>{text}</p>
-        <Suspense fallback={<>loaing...</>}>
-          <div>Attachment</div>
-        </Suspense>
-    </div>
-  )
+    <>
+      <br />
+      <div>
+        <h1>parentID</h1>
+        <h2>{parentID}</h2>
 
+        <h1>postID</h1>
+        <h2>{postID}</h2>
+
+        <h1>fileExtension</h1>
+        <h2>{fileExtension}</h2>
+
+        <h1>textContent</h1>
+        <h2>{textContent}</h2>
+        <img src={imageSrc} alt="alt" style={{width: '100px', height: '100px'}}/>
+        </div>
+    </>
+  );
 }

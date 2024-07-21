@@ -10,3 +10,13 @@ export interface ProfilePicture_Username {
   alt: string
   username: string,
 }
+
+export interface PostData {
+  postID: string,
+  parentID: string,
+  textContent: string,
+  encodedAttachment: string,
+  fileExtension: string
+} 
+
+

@@ -58,9 +58,9 @@ type PostsJSON struct {
 }
 
 type PostsRes struct {
-	Id     string `json:"id"`
-	Parent_id  string `json:"parent_id"`
-	Text_content  string `json:"text_content"`
-	Endcoded_attatchment  string `json:"endcoded_attatchment"`
-	Extension string `json:"extension"`
+	Id     string `json:"postID"`
+	Parent_id  string `json:"parentID"`
+	Text_content  string `json:"textContent"`
+	Endcoded_attatchment  string `json:"encodedAttachment"`
+	Extension string `json:"fileExtension"`
 }

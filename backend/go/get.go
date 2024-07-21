@@ -19,7 +19,7 @@ func GetPosts(c *gin.Context) {
 	defer db.Close()
 
 
-	rows, err := db.Query("SELECT * FROM posts LIMIT 10")
+	rows, err := db.Query("SELECT * FROM posts LIMIT 1")
 	if err != nil {
 		panic(err)
 	}

@@ -1,8 +1,8 @@
 type HTTPVerb = "GET" | "POST" | "PUT" | "DELETE" ;
-type Request<T> = T & Record<string, string | number>;
+type Request<T> = (T & Record<string, string | number>) | null
 type Status = number;
 
-export type DecisionTree = (Record<Status, Function> & { [key: number]: Function }) | null;
+export type DecisionTree = Record<Status, Function> & { [key: number]: Function }
 
 export class Endpoint<request> {
   verb: HTTPVerb;
@@ -26,6 +26,7 @@ export class Endpoint<request> {
   }
 
   async Exec() {
+    if (this.req){
       try {
         const res = await fetch(
         `http://localhost:8080/${this.route}`, 
@@ -39,7 +40,24 @@ export class Endpoint<request> {
       } catch (error) {
         console.error(`Error in ${this.verb}: ${error}, request to server: ${this.req}`);
         throw error;   
+      }
     }
+    else{
+      try {
+        const res = await fetch(
+        `http://localhost:8080/${this.route}`, 
+        { 
+          method: this.verb,
+          cache: this.cache ? "no-store" : "default"
+        }
+      );
+        return this.handleStatusCodes(res.status, res);
+      } catch (error) {
+        console.error(`Error in ${this.verb}: ${error}, request to server: ${this.req}`);
+        throw error;   
+      }
+    }
+
   }
 
   private handleStatusCodes(status: globalThis.Response["status"], res: globalThis.Response){
