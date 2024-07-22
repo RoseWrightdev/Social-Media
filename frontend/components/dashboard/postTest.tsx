@@ -20,6 +20,8 @@ export default function PostTest({textContent, encodedAttachment, fileExtension,
           <h1 className="ml-2">
             {textContent}
             <br />
+            <br />
+            <h1>Post ID:</h1>
             {postID}
           </h1>
         </div>
