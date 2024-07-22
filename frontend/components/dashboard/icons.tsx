@@ -10,7 +10,7 @@ export async function ProfilePicture() {
   const session = await verifySession()
   const user:User = await getUserById(session.userId.toString())
   const username = user.username;
-  return (
+  return (  
     <Link href={`/dashboard/${username}`}>
       <FaCircleUser className="w-12 h-12 text-slate-900"/>
     </Link>
