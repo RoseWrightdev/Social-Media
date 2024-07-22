@@ -13,7 +13,6 @@ export default async function Feed(){
   }
   const getPosts = new Endpoint("GET", "posts", null, tree)
   const posts = await getPosts.Exec()
-  console.log(posts)
   
   return (
       <Suspense fallback={<>loading...</>}>
