@@ -5,6 +5,7 @@
 /backend/python/.idea
 /backend/python/.venv
 /backend/python/__pycache__
+/backend/go/main.exe
 
 # dev server process ids
 pids
