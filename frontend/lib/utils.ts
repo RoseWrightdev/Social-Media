@@ -28,3 +28,11 @@ export async function getUserById(id: string) {
   const res = await req.json();
   return res;
 }
+
+export function handleAttachmentURI(fileExtension: string): string {
+  if (fileExtension === ".png"){
+    return "image"
+  } else {
+    return "video"
+  }
+}
