@@ -48,8 +48,10 @@ export class Endpoint<request> {
         `http://localhost:8080/${this.route}`, 
         { 
           method: this.verb,
-          cache: this.cache ? "no-store" : "default"
+          cache: this.cache ? "no-store" : "default",
+          next: { revalidate: 1 }
         }
+        
       );
         return this.handleStatusCodes(res.status, res);
       } catch (error) {

@@ -2,7 +2,14 @@ import Image from "next/image";
 import { PostData } from "@/lib/types";
 
 export default function Post({textContent, encodedAttachment, fileExtension, postID, parentID}: PostData) {
-  const imageSrc = `data:image/${fileExtension.replace('.', '')};base64,${encodedAttachment}`;
+  let attachmentType
+
+  if (fileExtension === ".png"){
+    attachmentType = "image"
+  } else {
+    attachmentType = "video"
+  }
+  const imageSrc = `data:${attachmentType}/${fileExtension.replace('.', '')};base64,${encodedAttachment}`;
 
   return (
     <>
@@ -19,7 +26,8 @@ export default function Post({textContent, encodedAttachment, fileExtension, pos
 
         <h1>textContent</h1>
         <h2>{textContent}</h2>
-        <img src={imageSrc} alt="alt" style={{width: '100px', height: '100px'}}/>
+
+        <img src={imageSrc} alt={""} style={{width: '250px', height: '200px'}}/>
         </div>
     </>
   );

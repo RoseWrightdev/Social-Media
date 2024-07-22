@@ -10,14 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 func GetPosts(c *gin.Context) {
 	db, err := Connect()
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
-
 
 	rows, err := db.Query("SELECT * FROM posts LIMIT 1")
 	if err != nil {
@@ -39,13 +37,12 @@ func GetPosts(c *gin.Context) {
 		var res PostsRes
 		res.Extension = extension
 		res.Endcoded_attatchment = base64.StdEncoding.EncodeToString(content)
-		res.Text_content = posts.Text_content  
+		res.Text_content = posts.Text_content
 		res.Id = posts.Id
 		res.Parent_id = posts.Parent_id
-		
+
 		allPosts = append(allPosts, res)
 	}
-	
 
 	// bind it to req
 	c.IndentedJSON(http.StatusOK, allPosts)
@@ -56,14 +53,14 @@ func getFileFromPostID(postID string) ([]byte, string, error) {
 	fileExtensions := []string{".mp4", ".png"}
 
 	for _, ext := range fileExtensions {
-			filePath := filepath.Join(basePath, postID+ext)
-			if _, err := os.Stat(filePath); err == nil {
-					content, err := os.ReadFile(filePath)
-					if err != nil {
-							return nil, "", err
-					}
-					return content, ext, nil
+		filePath := filepath.Join(basePath, postID+ext)
+		if _, err := os.Stat(filePath); err == nil {
+			content, err := os.ReadFile(filePath)
+			if err != nil {
+				return nil, "", err
 			}
+			return content, ext, nil
+		}
 	}
 
 	return nil, "", fmt.Errorf("file not found for post ID: %s", postID)
