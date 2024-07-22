@@ -33,7 +33,7 @@ export class Endpoint<request> {
         { 
           method: this.verb,
           body: JSON.stringify(this.req),
-          cache: this.cache ? "no-store" : "default"
+          cache: "no-store"
         }
       );
         return this.handleStatusCodes(res.status, res);
@@ -48,8 +48,7 @@ export class Endpoint<request> {
         `http://localhost:8080/${this.route}`, 
         { 
           method: this.verb,
-          cache: this.cache ? "no-store" : "default",
-          next: { revalidate: 1 }
+          cache: "no-store"
         }
         
       );

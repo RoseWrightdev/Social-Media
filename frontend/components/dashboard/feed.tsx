@@ -13,17 +13,24 @@ export default async function Feed(){
   }
   const getPosts = new Endpoint("GET", "posts", null, tree)
   const posts = await getPosts.Exec()
+  console.log(posts)
   
   return (
       <Suspense fallback={<>loading...</>}>
-          <Post 
-            postID={posts[0].postID} 
-            parentID={posts[0].parentID} 
-            encodedAttachment={posts[0].encodedAttachment} 
-            fileExtension={posts[0].fileExtension} 
-            textContent={posts[0].textContent} 
-            key={posts[0].postID}
-           />
+        {
+          posts.map((post: PostData) => {
+            return(
+              <Post 
+                postID={post.postID} 
+                parentID={post.parentID} 
+                encodedAttachment={post.encodedAttachment} 
+                fileExtension={post.fileExtension} 
+                textContent={post.textContent} 
+                key={post.postID}
+              />
+            )
+          })
+        }
       </Suspense>
     )  
   }
