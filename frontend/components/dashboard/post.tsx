@@ -2,7 +2,7 @@ import Image from "next/image";
 import { PostData } from "@/lib/types";
 import { handleAttachmentURI } from "@/lib/utils";
 
-export default function PostTest({textContent, encodedAttachment, fileExtension, postID, parentID}: PostData) {
+export default function Post({textContent, encodedAttachment, fileExtension, postID, parentID}: PostData) {
   const attachmentType = handleAttachmentURI(fileExtension)
   const imageSrc = `data:${attachmentType}/${fileExtension.replace('.', '')};base64,${encodedAttachment}`;
 

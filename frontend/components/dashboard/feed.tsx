@@ -1,4 +1,4 @@
-import PostTest from "@/components/dashboard/postTest"
+import Post from "@/components/dashboard/post"
 import { Suspense } from "react"
 import { Endpoint } from "@/lib/endpoint"
 import { PostData } from "@/lib/types"
@@ -20,7 +20,7 @@ export default async function Feed(){
         {
           posts.map((post: PostData) => {
             return(
-              <PostTest 
+              <Post 
                 postID={post.postID} 
                 parentID={post.parentID} 
                 encodedAttachment={post.encodedAttachment} 
