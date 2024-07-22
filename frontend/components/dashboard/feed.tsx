@@ -1,4 +1,4 @@
-import Post from "@/components/dashboard/post"
+import PostTest from "@/components/dashboard/postTest"
 import { Suspense } from "react"
 import { Endpoint } from "@/lib/endpoint"
 import { PostData } from "@/lib/types"
@@ -15,11 +15,12 @@ export default async function Feed(){
   const posts = await getPosts.Exec()
   
   return (
+    <>
       <Suspense fallback={<>loading...</>}>
         {
           posts.map((post: PostData) => {
             return(
-              <Post 
+              <PostTest 
                 postID={post.postID} 
                 parentID={post.parentID} 
                 encodedAttachment={post.encodedAttachment} 
@@ -31,5 +32,7 @@ export default async function Feed(){
           })
         }
       </Suspense>
+      <br />
+    </> 
     )  
   }
