@@ -6,7 +6,6 @@ export default function Page() {
     <PostForm />
     <br />
     <hr />
-    <br />
     <Feed />
    </main>
   );

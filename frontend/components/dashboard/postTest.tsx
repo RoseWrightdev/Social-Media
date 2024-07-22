@@ -11,22 +11,20 @@ export default function PostTest({textContent, encodedAttachment, fileExtension,
       <br />
       {/* */}
       <div className="mb-8">
-        <div className="flex mx-32">
+        <div className="flex">
           <div className="w-12 h-12 bg-slate-200 rounded-full"></div>
           <h3 className="italic font-thin text-slate-400 my-auto ml-4">@{parentID}</h3>
         </div>
         <br />
-        <div className="mx-32">
-          <h1 className="ml-2">
+          <div className="ml-2">
             {textContent}
             <br />
             <br />
-            <h1>Post ID:</h1>
+            <h2>Post ID:</h2>
             {postID}
-          </h1>
+          </div>
         </div>
-      </div>
-      <div className="relative mx-32 min-h-80 overflow-hidden rounded-2xl">
+      <div className="relative min-h-[400px] overflow-hidden rounded-2xl">
         <Image src={imageSrc} alt={postID} fill={true} />
       </div>
     </>

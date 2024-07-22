@@ -1,18 +1,18 @@
 import { Logo, ProfilePicture, Settings } from "@/components/dashboard/icons"
-import Logout from "@/components/auth/logoutButton"
 
 export default function Layout({children}: {children: React.ReactNode}) {
   return (
     <div className="flex flex-row h-[100dvh]">
       <div className="flex flex-col w-[25dvw] items-end p-2 pt-12">
-        <Logo/>
-          <span className="mt-6 mb-6">
-            <ProfilePicture />
-          </span>
+        <div className="sticky top-12">
+          <Logo/>
+        </div>
+        <div className="sticky top-32">
+          <ProfilePicture />
+        </div>
+        <div className="sticky top-52">
           <Settings/>
-          <div className="absolute bottom-8">
-            <Logout/> 
-          </div>
+        </div>
       </div>
         <div className="w-[50dvw] pt-12 mx-8">{children}</div>
         <div className="flex flex-col w-[25dvw] pt-12">
