@@ -62,11 +62,6 @@ export class Endpoint<request> {
   }
 
   private handleStatusCodes(status: globalThis.Response["status"], res: globalThis.Response){
-    if(this.tree == null) {
-      //return the status and res
-      return {status, res};
-    }
-    else {
       if (this.tree[status]) {
         //return the value from the function in the tree, pass in the res obj as a param
         // 200 : (res) => {...}
@@ -76,4 +71,3 @@ export class Endpoint<request> {
       }
    }
   }
-}
