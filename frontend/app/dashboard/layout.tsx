@@ -4,7 +4,7 @@ export default function Layout({children}: {children: React.ReactNode}) {
   return (
     <>
       <div className="flex flex-row">
-        <div className="flex flex-col w-[25dvw] items-end p-2 pt-12">
+        <div className="flex flex-col w-[25dvw] items-end p-2 pt-12 min-h-96">
           <div className="sticky top-12">
             <Logo/>
           </div>
