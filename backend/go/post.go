@@ -302,3 +302,26 @@ func PostAttachmentByPostID(c *gin.Context) {
 	json.EndcodedAttatchment = base64.StdEncoding.EncodeToString(content)
 	c.IndentedJSON(http.StatusOK, json)
 }
+
+func PostProfilePictureByUserIDRequest(c *gin.Context) {
+	var req PostProfilePictureByUserIDReq
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+	}
+
+	// get file from ./data/pfp by
+	content, extension, err := GetPfpByUserID(req.UserId)
+	if err!= nil {
+		panic(err)
+	}
+
+	var json EndcodedFile
+	json.Extension = extension
+
+	// edcode it for the req
+	json.EndcodedAttatchment = base64.StdEncoding.EncodeToString(content)
+
+	// bind it to json
+	c.IndentedJSON(http.StatusOK, json)
+}

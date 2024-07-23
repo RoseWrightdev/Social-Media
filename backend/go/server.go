@@ -28,6 +28,7 @@ func Run() {
 	router.POST("/updatepassword/:token/:password", PostUpdatePassword)
 	router.POST("/posts", PostPosts)
 	router.POST("/attachment", PostAttachmentByPostID)
+	router.POST("/pfp", PostProfilePictureByUserIDRequest)
 
 	router.Run("localhost:8080")
 }

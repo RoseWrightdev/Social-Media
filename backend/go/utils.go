@@ -191,3 +191,18 @@ func GetFileFromPostID(postID string) ([]byte, string, error) {
 
 	return nil, "", fmt.Errorf("file not found for post ID: %s", postID)
 }
+
+func GetPfpByUserID(id string) ([]byte, string, error) {
+	basePath := "./data/pfp"
+
+	ext := ".png"
+	filePath := filepath.Join(basePath, id+ext)
+	if _, err := os.Stat(filePath); err == nil {
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return nil, "", err
+		}
+		return content, ext, nil
+	}
+	return nil, "", fmt.Errorf("file not found for post ID: %s", id)
+}
