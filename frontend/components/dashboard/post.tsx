@@ -1,11 +1,8 @@
-import Image from "next/image";
 import { PostData } from "@/lib/types";
-import { handleAttachmentURI } from "@/lib/utils";
+import Attachment from "./attachment";
 
-export default function Post({textContent, encodedAttachment, fileExtension, postID, parentID}: PostData) {
-  const attachmentType = handleAttachmentURI(fileExtension)
-  const imageSrc = `data:${attachmentType}/${fileExtension.replace('.', '')};base64,${encodedAttachment}`;
-
+export default function Post({textContent, postID, parentID}: PostData) {
+  
   return (
     <>
       <br />
@@ -21,12 +18,10 @@ export default function Post({textContent, encodedAttachment, fileExtension, pos
             <br />
             <br />
             <h2>Post ID:</h2>
-            {postID}
+            {}
           </div>
+          <Attachment postId={postID}/>
         </div>
-      <div className="relative min-h-[400px] overflow-hidden rounded-2xl">
-        <Image src={imageSrc} alt={postID} fill={true} />
-      </div>
     </>
   );
 }

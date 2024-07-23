@@ -61,6 +61,13 @@ type PostsRes struct {
 	Id     string `json:"postID"`
 	Parent_id  string `json:"parentID"`
 	Text_content  string `json:"textContent"`
-	Endcoded_attatchment  string `json:"encodedAttachment"`
-	Extension string `json:"fileExtension"`
 }
+
+type PostAttachmentByPostIDRes struct {
+	EndcodedAttatchment  string `json:"encodedAttachment"`
+	Extension string `json:"fileExtension"`
+} 
+
+type PostAttachmentByPostIDReq struct {
+	PostId  string `json:"parent"`
+} 

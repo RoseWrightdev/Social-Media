@@ -15,8 +15,11 @@ export interface PostData {
   postID: string,
   parentID: string,
   textContent: string,
+} 
+
+export interface AttachmentRes {
   encodedAttachment: string,
   fileExtension: string
-} 
+}
 
 

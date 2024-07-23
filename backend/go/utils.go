@@ -173,3 +173,21 @@ func CopyFile(src, dst string) error {
 
 	return nil
 }
+
+func GetFileFromPostID(postID string) ([]byte, string, error) {
+	basePath := "./data"
+	fileExtensions := []string{".mp4", ".png"}
+
+	for _, ext := range fileExtensions {
+		filePath := filepath.Join(basePath, postID+ext)
+		if _, err := os.Stat(filePath); err == nil {
+			content, err := os.ReadFile(filePath)
+			if err != nil {
+				return nil, "", err
+			}
+			return content, ext, nil
+		}
+	}
+
+	return nil, "", fmt.Errorf("file not found for post ID: %s", postID)
+}

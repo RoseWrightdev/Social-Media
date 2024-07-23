@@ -18,6 +18,7 @@ func Run() {
 
 	//Get
 	router.GET("/posts", GetPosts)
+	
 
 	//Post
 	router.POST("/user", PostUserById)
@@ -26,6 +27,7 @@ func Run() {
 	router.POST("/resetpassword/:email", PostResetPassword)
 	router.POST("/updatepassword/:token/:password", PostUpdatePassword)
 	router.POST("/posts", PostPosts)
+	router.POST("/attachment", PostAttachmentByPostID)
 
 	router.Run("localhost:8080")
 }

@@ -23,8 +23,6 @@ export default async function Feed(){
               <Post 
                 postID={post.postID} 
                 parentID={post.parentID} 
-                encodedAttachment={post.encodedAttachment} 
-                fileExtension={post.fileExtension} 
                 textContent={post.textContent} 
                 key={post.postID}
               />

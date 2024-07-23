@@ -283,3 +283,22 @@ func PostLogin(c *gin.Context) {
 
 	c.IndentedJSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
 }
+
+
+func PostAttachmentByPostID(c *gin.Context) {
+	var req PostAttachmentByPostIDReq
+	if err := c.BindJSON(&req); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+  }
+
+	var json PostAttachmentByPostIDRes
+	content, extension, err := GetFileFromPostID(req.PostId)
+		if err != nil {
+			panic(err)
+		}
+	
+	json.Extension = extension
+	json.EndcodedAttatchment = base64.StdEncoding.EncodeToString(content)
+	c.IndentedJSON(http.StatusOK, json)
+}
