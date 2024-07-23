@@ -16,9 +16,7 @@ export default function Post({textContent, postID, parentID}: PostData) {
           <div className="ml-2">
             {textContent}
             <br />
-            <br />
-            <h2>Post ID:</h2>
-            {}
+            <br/>
           </div>
           <Attachment postId={postID}/>
         </div>
