@@ -29,6 +29,7 @@ func Run() {
 	router.POST("/posts", PostPosts)
 	router.POST("/attachment", PostAttachmentByPostID)
 	router.POST("/pfp", PostProfilePictureByUserIDRequest)
+	router.POST("/username", PostUsernameByUserId)
 
 	router.Run("localhost:8080")
 }

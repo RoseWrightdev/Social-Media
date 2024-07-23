@@ -304,7 +304,7 @@ func PostAttachmentByPostID(c *gin.Context) {
 }
 
 func PostProfilePictureByUserIDRequest(c *gin.Context) {
-	var req PostProfilePictureByUserIDReq
+	var req UserId
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
     return
@@ -324,4 +324,35 @@ func PostProfilePictureByUserIDRequest(c *gin.Context) {
 
 	// bind it to json
 	c.IndentedJSON(http.StatusOK, json)
+}
+
+func PostUsernameByUserId(c *gin.Context) {
+	var req UserId
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+	}
+
+	db, err := Connect()
+	if err != nil {
+		panic(err)
+	}
+
+	rows, err := db.Query("SELECT username FROM users WHERE id = $1", req.UserId) 
+if err != nil {
+    panic(err)
+}
+defer rows.Close()
+
+var res Username
+if rows.Next() {
+    err = rows.Scan(&res.Username)
+    if err != nil {
+        panic(err)
+    }
+} else {
+    panic("No user found with the given ID")
+}
+
+	c.IndentedJSON(http.StatusOK, res)	
 }

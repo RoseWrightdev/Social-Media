@@ -72,8 +72,12 @@ type PostAttachmentByPostIDReq struct {
 	PostId  string `json:"parent"`
 } 
 
-type PostProfilePictureByUserIDReq struct {
+type UserId struct {
 	UserId  string `json:"userId"`
+}
+
+type Username struct {
+	Username string `json:"username"`
 }
 
 type EndcodedFile struct {

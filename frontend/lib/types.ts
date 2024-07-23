@@ -22,4 +22,6 @@ export interface AttachmentRes {
   fileExtension: string
 }
 
-
+export interface Username {
+  username: string,
+}
