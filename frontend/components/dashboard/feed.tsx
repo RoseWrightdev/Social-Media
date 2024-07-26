@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { Endpoint } from "@/lib/endpoint"
 import { PostData } from "@/lib/types"
 import { DecisionTree } from "@/lib/endpoint"
+import { FeedSkeleton } from "@/components/skeletons"
 
 export default async function Feed(){
   const tree: DecisionTree = {
@@ -16,7 +17,7 @@ export default async function Feed(){
   
   return (
     <>
-      <Suspense fallback={<>loading...</>}>
+      <Suspense fallback={<FeedSkeleton/>}>
         {
           posts.map((post: PostData) => {
             return(
@@ -29,8 +30,8 @@ export default async function Feed(){
             )
           })
         }
-      </Suspense>
       <br />
+      </Suspense>
     </> 
     )  
   }
