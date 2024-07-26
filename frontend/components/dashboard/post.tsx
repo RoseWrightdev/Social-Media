@@ -16,7 +16,9 @@ export default function Post({textContent, postID, parentID}: PostData) {
         <Suspense fallback={<>loading pfp...</>}>
           <Pfp userId={parentID} />
         </Suspense>
+        <Suspense fallback={<h3 className="text-slate-400 my-auto ml-2 lowercase">@loading</h3>}>
           <h3 className="text-slate-400 my-auto ml-2 lowercase">@{<Username userId={parentID}/>}</h3>
+        </Suspense>
         </div>
         <br />
           <div className="ml-2">
