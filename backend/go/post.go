@@ -337,12 +337,13 @@ func PostUsernameByUserId(c *gin.Context) {
 	if err != nil {
 		panic(err)
 	}
+	defer db.Close()
 
 	rows, err := db.Query("SELECT username FROM users WHERE id = $1", req.UserId) 
-if err != nil {
-    panic(err)
-}
-defer rows.Close()
+	if err != nil {
+			panic(err)
+	}
+	defer rows.Close()
 
 var res Username
 if rows.Next() {
