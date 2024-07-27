@@ -37,7 +37,7 @@ def start_processes():
         os.makedirs(pids_dir)
 
     # Start the Go server and handle its output in a separate thread
-    os.chdir(os.path.join(base_dir, 'backend/go'))
+    os.chdir(os.path.join(base_dir, '../../backend/go'))
     go = subprocess.Popen(["go", "run", "."], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
     go_thread = threading.Thread(target=handle_output, args=(go, "Go  "))
     go_thread.start()
@@ -46,7 +46,7 @@ def start_processes():
         f.write(str(go.pid))
 
     # Start the Next.js development server and handle its output in a separate thread
-    os.chdir(os.path.join(base_dir, "frontend"))
+    os.chdir(os.path.join(base_dir, "../../frontend"))
     next_process = subprocess.Popen(
         ["C:\\Program Files\\nodejs\\npm.cmd", "run", "dev"],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
