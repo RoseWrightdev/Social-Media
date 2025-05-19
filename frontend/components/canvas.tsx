@@ -8,6 +8,12 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 10;
 const ZOOM_STEP_FACTOR = 1.05;
 
+function getDistance(t1: Touch, t2: Touch) {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
 export default function Canvas() {
     const viewportRef = useRef<HTMLDivElement>(null);
     const [zoom, setZoom] = useState<number>(1);
@@ -16,6 +22,10 @@ export default function Canvas() {
     // Touch Panning State (Two Fingers)
     const [isTwoFingerPanning, setIsTwoFingerPanning] = useState<boolean>(false);
     const [lastTwoFingerMidpoint, setLastTwoFingerMidpoint] = useState<Point | null>(null);
+
+    // Pinch Zoom State
+    const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
+    const [initialZoom, setInitialZoom] = useState<number>(1);
 
     const [viewportSize, setViewportSize] = useState<Size | null>(null);
 
@@ -71,34 +81,93 @@ export default function Canvas() {
                 x: (touch1.clientX + touch2.clientX) / 2,
                 y: (touch1.clientY + touch2.clientY) / 2,
             });
+            setInitialPinchDistance(getDistance(touch1 as unknown as Touch, touch2 as unknown as Touch));
+            setInitialZoom(zoom);
             if (viewportRef.current) viewportRef.current.style.cursor = 'move';
         }
-    }, []);
+    }, [zoom]);
 
     const handleTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
-        if (isTwoFingerPanning && event.touches.length === 2 && lastTwoFingerMidpoint) {
-            event.preventDefault();
-            const touch1 = event.touches[0];
-            const touch2 = event.touches[1];
-            const currentMidpoint = {
-                x: (touch1.clientX + touch2.clientX) / 2,
-                y: (touch1.clientY + touch2.clientY) / 2,
-            };
-            const dx = currentMidpoint.x - lastTwoFingerMidpoint.x;
-            const dy = currentMidpoint.y - lastTwoFingerMidpoint.y;
-            setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-            setLastTwoFingerMidpoint(currentMidpoint);
-        } else if (isTwoFingerPanning && event.touches.length !== 2) {
+    // Ensure we are in a two-finger panning state and have the necessary refs/state
+    if (!isTwoFingerPanning || event.touches.length !== 2 || !lastTwoFingerMidpoint || !viewportRef.current) {
+        // If we were panning but touch count changed, reset state
+        if (isTwoFingerPanning && event.touches.length !== 2) {
             setIsTwoFingerPanning(false);
             setLastTwoFingerMidpoint(null);
+            setInitialPinchDistance(null);
+            // initialZoom is reset at the start of a new gesture
             if (viewportRef.current) viewportRef.current.style.cursor = 'grab';
         }
-    }, [isTwoFingerPanning, lastTwoFingerMidpoint]);
+        return;
+    }
+
+    event.preventDefault();
+    const touch1 = event.touches[0];
+    const touch2 = event.touches[1];
+
+    // Current midpoint of the two touches in client coordinates
+    const currentGlobalMidpoint = {
+        x: (touch1.clientX + touch2.clientX) / 2,
+        y: (touch1.clientY + touch2.clientY) / 2,
+    };
+
+    // 1. Calculate Pan Delta based on midpoint movement
+    // lastTwoFingerMidpoint is also in client coordinates
+    const panDeltaX = currentGlobalMidpoint.x - lastTwoFingerMidpoint.x;
+    const panDeltaY = currentGlobalMidpoint.y - lastTwoFingerMidpoint.y;
+
+    // Apply pan delta to the current panOffset
+    // This is the panOffset if only panning occurred or before zoom adjustment
+    let newPanOffset = {
+        x: panOffset.x + panDeltaX,
+        y: panOffset.y + panDeltaY,
+    };
+
+    let newZoom = zoom; // Start with current zoom (from state)
+
+    // 2. Calculate Zoom if initialPinchDistance is valid
+    if (initialPinchDistance !== null && initialPinchDistance > 0) {
+        const currentDistance = getDistance(touch1 as unknown as Touch, touch2 as unknown as Touch);
+        const scale = currentDistance / initialPinchDistance;
+        // Calculate zoom relative to the zoom level at the start of the pinch gesture
+        const calculatedZoom = initialZoom * scale;
+        newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, calculatedZoom));
+
+        // 3. If zoom has changed, adjust panOffset to zoom towards the current finger midpoint
+        // This ensures the point under the fingers' midpoint stays relatively fixed during zoom
+        if (newZoom !== zoom) { // Compare new calculated zoom with current state zoom
+            const rect = viewportRef.current.getBoundingClientRect();
+            // Midpoint relative to the viewport
+            const screenMidpointX = currentGlobalMidpoint.x - rect.left;
+            const screenMidpointY = currentGlobalMidpoint.y - rect.top;
+
+            // Calculate the world coordinates of the screen midpoint.
+            // Use the `newPanOffset` (which includes the current frame's panning) and the `zoom` (state zoom before this change).
+            const worldMidX = (screenMidpointX - newPanOffset.x) / zoom;
+            const worldMidY = (screenMidpointY - newPanOffset.y) / zoom;
+
+            // Update panOffset to keep the world point (worldMidX, worldMidY)
+            // at the screen point (screenMidpointX, screenMidpointY) after applying newZoom.
+            newPanOffset = {
+                x: screenMidpointX - worldMidX * newZoom,
+                y: screenMidpointY - worldMidY * newZoom,
+            };
+        }
+    }
+
+    // 4. Apply new state
+    setZoom(newZoom);
+    setPanOffset(newPanOffset);
+    // Update last midpoint for the next move event
+    setLastTwoFingerMidpoint(currentGlobalMidpoint);
+
+}, [isTwoFingerPanning, lastTwoFingerMidpoint, initialPinchDistance, initialZoom, panOffset, zoom, viewportRef]); // Added viewportRef to dependencies
 
     const handleTouchEndOrCancel = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
         if (isTwoFingerPanning && event.touches.length < 2) {
             setIsTwoFingerPanning(false);
             setLastTwoFingerMidpoint(null);
+            setInitialPinchDistance(null);
             if (viewportRef.current) viewportRef.current.style.cursor = 'grab';
         }
     }, [isTwoFingerPanning]);
