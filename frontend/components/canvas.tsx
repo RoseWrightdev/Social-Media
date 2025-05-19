@@ -5,7 +5,7 @@ import { Size, Point } from "@/lib/utils";
 import Grid from "@/components/grid"
 
 const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 10;
+const MAX_ZOOM = 50;
 const ZOOM_STEP_FACTOR = 1.05;
 
 function getDistance(t1: Touch, t2: Touch) {
@@ -48,28 +48,44 @@ export default function Canvas() {
         resizeObserver.observe(viewportElement);
         return () => resizeObserver.unobserve(viewportElement);
     }, []);
-
     const handleWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
         event.preventDefault();
         if (!viewportRef.current) return;
         const rect = viewportRef.current.getBoundingClientRect();
         const mouseX: number = event.clientX - rect.left;
         const mouseY: number = event.clientY - rect.top;
-        const oldZoom = zoom;
-        let newZoom: number;
-        if (event.deltaY < 0) {
-            newZoom = Math.min(MAX_ZOOM, oldZoom * ZOOM_STEP_FACTOR);
+
+        // Pinch-to-zoom gesture on touchpad (ctrlKey is true)
+        if (event.ctrlKey) {
+            setZoom(prevZoom => {
+                let newZoom: number;
+                if (event.deltaY < 0) {
+                    newZoom = Math.min(MAX_ZOOM, prevZoom * ZOOM_STEP_FACTOR);
+                } else {
+                    newZoom = Math.max(MIN_ZOOM, prevZoom / ZOOM_STEP_FACTOR);
+                }
+                if (newZoom === prevZoom) return prevZoom;
+
+                // Calculate new panOffset in sync with newZoom
+                setPanOffset(prevPanOffset => {
+                    const worldMouseX: number = (mouseX - prevPanOffset.x) / prevZoom;
+                    const worldMouseY: number = (mouseY - prevPanOffset.y) / prevZoom;
+                    const newPanX: number = mouseX - worldMouseX * newZoom;
+                    const newPanY: number = mouseY - worldMouseY * newZoom;
+                    return { x: newPanX, y: newPanY };
+                });
+
+                return newZoom;
+            });
         } else {
-            newZoom = Math.max(MIN_ZOOM, oldZoom / ZOOM_STEP_FACTOR);
+            // Two-finger panning on touchpad (reduce sensitivity)
+            const PAN_SENSITIVITY = 0.3; // Lower value = less movement
+            setPanOffset(prev => ({
+                x: prev.x - event.deltaX * PAN_SENSITIVITY,
+                y: prev.y - event.deltaY * PAN_SENSITIVITY,
+            }));
         }
-        if (newZoom === oldZoom) return;
-        const worldMouseX: number = (mouseX - panOffset.x) / oldZoom;
-        const worldMouseY: number = (mouseY - panOffset.y) / oldZoom;
-        const newPanX: number = mouseX - worldMouseX * newZoom;
-        const newPanY: number = mouseY - worldMouseY * newZoom;
-        setZoom(newZoom);
-        setPanOffset({ x: newPanX, y: newPanY });
-    }, [zoom, panOffset]);
+    }, []);
 
     const handleTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
         if (event.touches.length === 2) {
@@ -193,7 +209,7 @@ export default function Canvas() {
             >
                 <div
                     style={{
-                        position: 'absolute', left: 0, top: 0, width: 5, height: 5,
+                        position: 'absolute', left: 0, top: 0, width: 10, height: 10,
                         backgroundColor: 'rgba(0, 255, 0, 0.8)',
                     }}
                     title="World Origin (0,0)"

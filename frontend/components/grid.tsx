@@ -14,7 +14,7 @@ const positiveModulo = (a: number, n: number): number => ((a % n) + n) % n;
 // Defines the available world unit sizes for grid lines
 const GRID_SCALES= [0.1, 0.2, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
 // Target screen size for a major grid cell.
-const TARGET_PRIMARY_SCREEN_SIZE = 64; // pixels
+const TARGET_PRIMARY_SCREEN_SIZE = 50; // pixels
 
 /**
  * GridRenderer Component
@@ -52,7 +52,7 @@ const Grid: React.FC<GridRendererProps> = React.memo(({ zoom, panOffset, viewpor
   const secondaryPatternOffsetY: number = positiveModulo(panOffset.y, secondaryScreenCellSize);
 
   const primaryStrokeWidth: number = 1 - (0.6 / Math.sqrt(zoom));
-  const secondaryStrokeWidth: number = 0.3 / Math.sqrt(zoom);
+  const secondaryStrokeWidth: number = 1- (0.3 / Math.sqrt(zoom));
 
   return (
     <svg
@@ -95,7 +95,7 @@ const Grid: React.FC<GridRendererProps> = React.memo(({ zoom, panOffset, viewpor
       </defs>
 
       {/* Background color rect */}
-      <rect width="100%" height="100%" fill="rgb(240, 240, 240)" />
+      <rect width="100%" height="100%" fill="rgb(249, 250, 251)" />
 
       {/* Conditionally render the secondary grid layer */}
       {showSecondaryGrid && (
