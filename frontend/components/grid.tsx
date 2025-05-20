@@ -12,7 +12,7 @@ interface GridRendererProps {
 const positiveModulo = (a: number, n: number): number => ((a % n) + n) % n;
 
 // Defines the available world unit sizes for grid lines
-const GRID_SCALES= [0.1, 0.2, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
+const GRID_SCALES= [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
 // Target screen size for a major grid cell.
 const TARGET_PRIMARY_SCREEN_SIZE = 50; // pixels
 

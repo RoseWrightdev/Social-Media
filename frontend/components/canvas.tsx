@@ -5,7 +5,7 @@ import { Size, Point } from "@/lib/utils";
 import Grid from "@/components/grid"
 
 const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 50;
+const MAX_ZOOM = 200;
 const ZOOM_STEP_FACTOR = 1.05;
 
 function getDistance(t1: Touch, t2: Touch) {
@@ -48,6 +48,17 @@ export default function Canvas() {
         resizeObserver.observe(viewportElement);
         return () => resizeObserver.unobserve(viewportElement);
     }, []);
+    // Prevent browser zoom with ctrl+wheel (handled in component)
+    useEffect(() => {
+        const handleWheel = (e: WheelEvent) => {
+            if (e.ctrlKey) {
+                e.preventDefault();
+            }
+        };
+        window.addEventListener('wheel', handleWheel, { passive: false });
+        return () => window.removeEventListener('wheel', handleWheel);
+    }, []);
+
     const handleWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
         event.preventDefault();
         if (!viewportRef.current) return;
@@ -192,7 +203,6 @@ export default function Canvas() {
         <div
             ref={viewportRef}
             className="w-full h-full bg-gray-50 rounded-md shadow-lg overflow-hidden relative select-none touch-none"
-            style={{ cursor: 'grab' }}
             onWheel={handleWheel}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
