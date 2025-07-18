@@ -13,7 +13,7 @@ func GetAllowedOriginsFromEnv(envVarName string, defaultEnvs []string) []string 
 	originsStr := os.Getenv(envVarName)
 	if originsStr == "" {
 		// Provide sensible defaults for local development if the env var isn't set.
-		slog.Warn(fmt.Sprintf("%s environment variable not set. Using default development origins.", envVarName))
+		slog.Warn(fmt.Sprintf("%s environment variable not set. Using default development origins:\n%s", envVarName, defaultEnvs))
 		return defaultEnvs
 	}
 	return strings.Split(originsStr, ",")
