@@ -13,6 +13,7 @@ func main() {
 	// Set up the Gin router.
 	router := gin.Default()
 
+	// Set env
 	err := godotenv.Load()
 	if err != nil {
 		slog.Warn("Warning: .env file not found")
