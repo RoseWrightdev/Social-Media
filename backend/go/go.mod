@@ -1,4 +1,4 @@
-module github.com/RoseWrightdev/Social-Media
+module Social-Media/backend/go
 
 go 1.24.5
 
