@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv" 
 
 	"Social-Media/backend/go/internal/v1/signaling"
 )
@@ -12,7 +13,12 @@ func main() {
 	// Set up the Gin router.
 	router := gin.Default()
 
-	allowedOrigins := signaling.GetAllowedOriginsFromEnv("ALLOWED_ORIGNINS", []string{"localhost:3000"})
+	err := godotenv.Load()
+	if err != nil {
+		slog.Warn("Warning: .env file not found")
+	}
+
+	allowedOrigins := signaling.GetAllowedOriginsFromEnv("ALLOWED_ORIGINS", []string{"localhost:3000"})
 
 	// --- Create a separate hub for each feature ---
 	// This hub manages WebSocket connections for video calls.
