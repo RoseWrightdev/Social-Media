@@ -1,0 +1,36 @@
+# --- Stage 1: Build ---
+FROM golang:1.24.5-alpine3.22 AS builder
+
+# Set the working directory inside the container.
+WORKDIR /app
+
+# Copy the module dependency files first.
+# This leverages Docker's layer caching. If these files don't change,
+# Docker won't re-download dependencies on subsequent builds.
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the rest.
+COPY . .
+
+# Build the application.
+# This command assumes your main.go file is in a directory like ./cmd/v1/signaling
+# The output binary will be placed at /app/main
+RUN go build -o /app/main ./cmd/v1/signaling
+
+# --- Stage 2: Final Image ---
+# Use a minimal base image for the final container.
+# This results in a much smaller and more secure image.
+FROM alpine:latest
+
+WORKDIR /app
+
+# Copy only the compiled binary from the builder stage.
+COPY --from=builder /app/main .
+
+# Expose the port your application listens on.
+EXPOSE 8080
+
+# The command to run your application.
+# This executes the compiled binary.
+CMD ["./main"]
