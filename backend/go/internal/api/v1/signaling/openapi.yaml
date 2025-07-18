@@ -1,0 +1,84 @@
+openapi: 3.1.0
+info:
+  title: Real-time Signaling Service API
+  description: |-
+    This API provides WebSocket endpoints for real-time communication features, including video calls, screen sharing, and text chat.
+    Clients connect to these endpoints to join specific rooms and exchange signaling or chat messages.
+  version: 1.0.0
+servers:
+  - url: 'ws://localhost:8080'
+    description: Local development server
+
+tags:
+  - name: WebSockets
+    description: Endpoints for establishing real-time WebSocket connections.
+
+paths:
+  /ws/zoom/{roomId}:
+    get:
+      tags:
+        - WebSockets
+      summary: Establish a WebSocket connection for a video call.
+      description: |-
+        Upgrades the HTTP connection to a WebSocket connection to join a specific video call room.
+        Once connected, clients can send and receive WebRTC signaling messages (offers, answers, ICE candidates) to other participants in the same room.
+      parameters:
+        - name: roomId
+          in: path
+          description: The unique identifier for the video call room to join.
+          required: true
+          schema:
+            type: string
+            example: "meeting-12345"
+      responses:
+        '101':
+          description: Switching protocols to WebSocket. This indicates a successful connection upgrade.
+        '400':
+          description: Bad Request. This can occur if the request is not a valid WebSocket upgrade request or if the 'Origin' header is not in the list of allowed origins.
+
+  /ws/screenshare/{roomId}:
+    get:
+      tags:
+        - WebSockets
+      summary: Establish a WebSocket connection for screen sharing.
+      description: |-
+        Upgrades the HTTP connection to a WebSocket connection to join a specific screen sharing session.
+        This channel is used to broadcast screen sharing streams or signaling data related to the screen share.
+      parameters:
+        - name: roomId
+          in: path
+          description: The unique identifier for the screen sharing room to join.
+          required: true
+          schema:
+            type: string
+            example: "share-session-abc"
+      responses:
+        '101':
+          description: Switching protocols to WebSocket.
+        '400':
+          description: Bad Request. Invalid upgrade request or disallowed origin.
+
+  /ws/chat/{roomId}:
+    get:
+      tags:
+        - WebSockets
+      summary: Establish a WebSocket connection for text chat.
+      description: |-
+        Upgrades the HTTP connection to a WebSocket connection to join a text chat room.
+        All messages sent by a client will be broadcast to all other clients in the same room.
+      parameters:
+        - name: roomId
+          in: path
+          description: The unique identifier for the chat room to join.
+          required: true
+          schema:
+            type: string
+            example: "general-chat"
+      responses:
+        '101':
+          description: Switching protocols to WebSocket.
+        '400':
+          description: Bad Request. Invalid upgrade request or disallowed origin.
+
+components:
+  schemas: {} # No complex request/response bodies for the initial handshake.
