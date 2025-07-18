@@ -1,7 +1,7 @@
 package signaling
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 
@@ -9,26 +9,39 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// upgrader is an unexported variable that upgrades HTTP connections to WebSocket.
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	// Note: In production, you should implement a proper origin check.
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
-
 // Hub manages all the active rooms. It is exported so it can be used in main.go.
 type Hub struct {
-	rooms map[string]*Room
-	mu    sync.Mutex
+	rooms    map[string]*Room
+	mu       sync.Mutex
+	upgrader websocket.Upgrader
 }
 
-// NewHub creates a new Hub. Exported for use in main.
-func NewHub() *Hub {
+// NewHub creates a new Hub and configures it with the provided allowed origins.
+func NewHub(allowedOrigins []string) *Hub {
+	//closure that captures the allowedOrigins slice.
+	checkOrigin := func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		for _, allowed := range allowedOrigins {
+			if allowed == origin {
+				// Log allowed connections for audit purposes.
+				// In a real app, you might use a more structured logger.
+				slog.Info("Origin allowed:", "origin", origin)
+				return true
+			}
+		}
+		slog.Error("Origin blocked:","origin", origin)
+		return false
+	}
+
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     checkOrigin,
+	}
+
 	return &Hub{
-		rooms: make(map[string]*Room),
+		rooms:    make(map[string]*Room),
+		upgrader: upgrader,
 	}
 }
 
@@ -58,9 +71,9 @@ func (h *Hub) ServeWs(c *gin.Context) {
 	roomID := c.Param("roomId")
 	room := h.getOrCreateRoom(roomID)
 
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade connection for room %s: %v", roomID, err)
+		slog.Error("Failed to upgrade connection for room %s: %v", roomID, err)
 		return
 	}
 
@@ -71,7 +84,7 @@ func (h *Hub) ServeWs(c *gin.Context) {
 	}
 	room.AddClient(client)
 
-	log.Printf("Client connected to room %s. Total clients in room: %d", room.ID, len(room.clients))
+	slog.Info("Client connected to room %s. Total clients in room: %d", room.ID, len(room.clients))
 
 	go client.writePump()
 	go client.readPump()

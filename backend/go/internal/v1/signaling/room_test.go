@@ -1,10 +1,12 @@
 package signaling
+
 import (
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
 func TestAddAndRemoveClient(t *testing.T) {
 	room := NewTestRoom("test-room")
 	client := &Client{send: make(chan []byte, 1)}
