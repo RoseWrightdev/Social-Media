@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv" 
 
-	"Social-Media/backend/go/internal/v1/signaling"
+	"Social-Media/backend/go/internal/v1/session"
 )
 
 func main() {
@@ -19,15 +19,15 @@ func main() {
 		slog.Warn("Warning: .env file not found")
 	}
 
-	allowedOrigins := signaling.GetAllowedOriginsFromEnv("ALLOWED_ORIGINS", []string{"localhost:3000"})
+	allowedOrigins := session.GetAllowedOriginsFromEnv("ALLOWED_ORIGINS", []string{"localhost:3000"})
 
 	// --- Create a separate hub for each feature ---
 	// This hub manages WebSocket connections for video calls.
-	zoomCallHub := signaling.NewHub(allowedOrigins)
+	zoomCallHub := session.NewHub(allowedOrigins)
 	// This hub manages WebSocket connections for screen sharing.
-	screenShareHub := signaling.NewHub(allowedOrigins)
+	screenShareHub := session.NewHub(allowedOrigins)
 	// This hub manages WebSocket connections for text chat.
-	chatHub := signaling.NewHub(allowedOrigins)
+	chatHub := session.NewHub(allowedOrigins)
 
 	// --- Group WebSocket endpoints under a common path ---
 	wsGroup := router.Group("/ws")

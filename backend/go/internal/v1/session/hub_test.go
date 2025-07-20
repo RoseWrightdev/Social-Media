@@ -1,4 +1,4 @@
-package signaling
+package session
 import (
 	"net/http/httptest"
 	"net/http"
