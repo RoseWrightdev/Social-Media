@@ -56,6 +56,7 @@ func main() {
 		wsGroup.GET("/screenshare/:roomId", screenShareHub.ServeWs)
 		wsGroup.GET("/chat/:roomId", chatHub.ServeWs)
 	}
+	router.Use(gin.Recovery()) 
 
 	// Start the server.
 	slog.Info("API server starting on :8080")
@@ -67,6 +68,7 @@ func main() {
 		Addr:    ":8080",
 		Handler: router,
 	}
+
 	// --- Graceful Shutdown ---
 	// Start the server in a goroutine so it doesn't block.
 	go func() {
