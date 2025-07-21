@@ -27,7 +27,7 @@ func NewTestClient() *Client {
 }
 
 // NewTestRoom creates a new, stateful room for testing purposes.
-func NewTestRoom(id string) *Room {
+func NewTestRoom(id string, onEmptyCallback func(string)) *Room {
 	return &Room{
 		ID:           id,
 		participants: make(map[*Client]bool),
@@ -35,5 +35,6 @@ func NewTestRoom(id string) *Room {
 		handsRaised:  make(map[*Client]bool),
 		hosts:        make(map[*Client]bool),
 		screenshares: make(map[*Client]bool),
+		onEmpty: onEmptyCallback,
 	}
 }

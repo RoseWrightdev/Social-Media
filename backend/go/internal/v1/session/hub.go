@@ -30,6 +30,18 @@ func NewHub(validator TokenValidator) *Hub {
 	}
 }
 
+// removeRoom is a private method for the Hub to clean up empty rooms.
+func (h *Hub) removeRoom(roomID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Check if the room still exists and is empty before deleting.
+	if room, ok := h.rooms[roomID]; ok && len(room.participants) == 0 {
+		delete(h.rooms, roomID)
+		slog.Info("Removed empty room from hub", "roomID", roomID)
+	}
+}
+
 // getOrCreateRoom creates a pointer to a room at the given id if it doesn't already exist.
 func (h *Hub) getOrCreateRoom(id string) *Room {
 	h.mu.Lock()
@@ -40,7 +52,7 @@ func (h *Hub) getOrCreateRoom(id string) *Room {
 	}
 
 	slog.Info("Creating new session room", "roomID", id)
-	room := NewRoom(id)
+	room := NewRoom(id, h.removeRoom)
 	h.rooms[id] = room
 	return room
 }

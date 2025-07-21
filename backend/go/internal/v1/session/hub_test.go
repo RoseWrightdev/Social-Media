@@ -82,3 +82,12 @@ func TestServeWs_AuthFailure(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code, "Should return 401 Unauthorized if token is invalid")
 	})
 }
+
+func TestRemoveHub(t *testing.T) {
+	hub := NewTestHub(nil)
+	testID := "test_room"
+	hub.rooms[testID] = NewTestRoom(testID, nil)
+	hub.removeRoom(testID)
+	assert.Empty(t, hub.rooms)
+	assert.Empty(t, hub.rooms[testID])
+}

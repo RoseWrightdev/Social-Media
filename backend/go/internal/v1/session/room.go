@@ -18,10 +18,13 @@ type Room struct {
 	handsRaised  map[*Client]bool // Participants with their hand raised
 	hosts        map[*Client]bool // Clients with host privileges
 	screenshares map[*Client]bool // Clients currently sharing their screen
+
+	// onEmpty is the callback function to call when the room has no more participants.
+	onEmpty func(string)
 }
 
 // NewRoom creates a new, stateful room.
-func NewRoom(id string) *Room {
+func NewRoom(id string, onEmptyCallback func(string)) *Room {
 	return &Room{
 		ID:           id,
 		participants: make(map[*Client]bool),
@@ -29,6 +32,7 @@ func NewRoom(id string) *Room {
 		handsRaised:  make(map[*Client]bool),
 		hosts:        make(map[*Client]bool),
 		screenshares: make(map[*Client]bool),
+		onEmpty:      onEmptyCallback,
 	}
 }
 
@@ -69,8 +73,16 @@ func (r *Room) handleClientLeft(client *Client) {
 	slog.Info("Client disconnected and removed from room", "room", r.ID, "userID", client.UserID)
 
 	if wasParticipant {
-		r.broadcastRoomState_unlocked()
+		// If the room is empty of participants, trigger the callback.
+		if len(r.participants) == 0 {
+			if r.onEmpty != nil {
+				go r.onEmpty(r.ID) // Run in a goroutine to avoid potential deadlocks
+			}
+		} else {
+			r.broadcastRoomState_unlocked()
+		}
 	}
+	
 }
 
 // handleMessage is the central router for all incoming messages from clients.

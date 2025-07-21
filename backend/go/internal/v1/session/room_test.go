@@ -19,7 +19,7 @@ func newTestClient(userID string) *Client {
 
 func TestNewRoom(t *testing.T) {
 	roomID := "test-init-room"
-	room := NewRoom(roomID)
+	room := NewTestRoom(roomID, nil)
 
 	require.NotNil(t, room, "NewRoom should not return nil")
 	assert.Equal(t, roomID, room.ID, "Room ID should be set correctly")
@@ -32,7 +32,7 @@ func TestNewRoom(t *testing.T) {
 
 func TestHandleClientJoined(t *testing.T) {
 	t.Run("first client becomes host and is admitted", func(t *testing.T) {
-		room := NewTestRoom("test-host-room")
+		room := NewTestRoom("test-host-room", nil)
 		client1 := newTestClient("user-host")
 
 		room.handleClientJoined(client1)
@@ -56,7 +56,7 @@ func TestHandleClientJoined(t *testing.T) {
 	})
 
 	t.Run("subsequent client enters waiting room", func(t *testing.T) {
-		room := NewTestRoom("test-wait-room")
+		room := NewTestRoom("test-wait-room", nil)
 		hostClient := newTestClient("user-host")
 		waitingClient := newTestClient("user-waiting")
 
@@ -76,7 +76,7 @@ func TestHandleClientJoined(t *testing.T) {
 }
 
 func TestHandleClientLeft(t *testing.T) {
-	room := NewTestRoom("test-leave-room")
+	room := NewTestRoom("test-leave-room", nil)
 	hostClient := newTestClient("user-host")
 	participantClient := newTestClient("user-participant")
 
@@ -110,7 +110,7 @@ func TestHandleClientLeft(t *testing.T) {
 }
 
 func TestHandleMessage_ChatMessage(t *testing.T) {
-	room := NewTestRoom("test-chat-room")
+	room := NewTestRoom("test-chat-room", nil)
 	client1 := newTestClient("user1")
 	client2 := newTestClient("user2")
 
@@ -153,7 +153,7 @@ func TestHandleMessage_ChatMessage(t *testing.T) {
 }
 
 func TestHandleMessage_RaiseHand(t *testing.T) {
-	room := NewTestRoom("test-raise-hand")
+	room := NewTestRoom("test-raise-hand", nil)
 	client := newTestClient("user1")
 	room.handleClientJoined(client) // Becomes host
 	<-client.send                  // Clear initial state
@@ -185,7 +185,7 @@ func TestHandleMessage_RaiseHand(t *testing.T) {
 }
 
 func TestHandleMessage_AdmitUser(t *testing.T) {
-	room := NewTestRoom("test-admit-room")
+	room := NewTestRoom("test-admit-room", nil)
 	host := newTestClient("host1")
 	waitingUser := newTestClient("waiter1")
 	room.handleClientJoined(host)
@@ -215,7 +215,7 @@ func TestHandleMessage_AdmitUser(t *testing.T) {
 	room.mu.RUnlock()
 }
 func TestBroadcastToParticipantsUnlocked(t *testing.T) {
-	room := NewTestRoom("test-broadcast-room")
+	room := NewTestRoom("test-broadcast-room", nil)
 	client1 := newTestClient("user1")
 	client2 := newTestClient("user2")
 	client3 := newTestClient("user3")
@@ -250,7 +250,7 @@ func TestBroadcastToParticipantsUnlocked(t *testing.T) {
 }
 
 func TestBroadcastRoomStateUnlocked(t *testing.T) {
-	room := NewTestRoom("test-roomstate-room")
+	room := NewTestRoom("test-roomstate-room", nil)
 	client1 := newTestClient("user1")
 	client2 := newTestClient("user2")
 
@@ -285,7 +285,7 @@ func TestBroadcastRoomStateUnlocked(t *testing.T) {
 }
 
 func TestBroadcastToParticipantsUnlocked_MarshalError(t *testing.T) {
-	room := NewTestRoom("test-marshal-error")
+	room := NewTestRoom("test-marshal-error", nil)
 	client := newTestClient("user1")
 	room.mu.Lock()
 	room.participants[client] = true
@@ -304,4 +304,13 @@ func TestBroadcastToParticipantsUnlocked_MarshalError(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 		// Success: no message sent
 	}
+}
+
+func TestHandleClientLeft_(t *testing.T) {
+	hub := NewTestHub(nil)
+	testID := "test_room"
+	hub.rooms[testID] = NewTestRoom(testID, nil)
+	hub.removeRoom(testID)
+	assert.Empty(t, hub.rooms)
+	assert.Empty(t, hub.rooms[testID])
 }
