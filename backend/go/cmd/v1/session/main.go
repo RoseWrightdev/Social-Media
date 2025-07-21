@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
 	"Social-Media/backend/go/internal/v1/auth"
@@ -58,4 +62,34 @@ func main() {
 	if err := router.Run(":8080"); err != nil {
 		slog.Error("Failed to run server", "error", err)
 	}
+
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: router,
+	}
+	// --- Graceful Shutdown ---
+	// Start the server in a goroutine so it doesn't block.
+	go func() {
+		slog.Info("API server starting on :8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Failed to run server", "error", err)
+		}
+	}()
+
+	// Wait for an interrupt signal to gracefully shut down the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	slog.Info("Shutting down server...")
+
+	// The context is used to inform the server it has 5 seconds to finish
+	// the requests it is currently handling
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		slog.Error("Server forced to shutdown:", "error", err)
+	}
+
+	slog.Info("Server exiting")
 }
+
