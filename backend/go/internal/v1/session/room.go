@@ -1,65 +1,221 @@
 package session
 
-import "sync"
+import (
+	"encoding/json"
+	"log/slog"
+	"sync"
+	"time"
+)
 
-// Room manages a set of clients for a specific signaling room.
+// Room now manages the state for a meeting session.
 type Room struct {
-	ID        string
-	clients   map[*Client]bool
-	mu        sync.Mutex
-	broadcast chan []byte
+	ID string // The room ID
+	mu sync.RWMutex
+
+	// State Management
+	participants map[*Client]bool // Clients who are in the main meeting
+	waitingRoom  map[*Client]bool // Clients waiting for admission
+	handsRaised  map[*Client]bool // Participants with their hand raised
+	hosts        map[*Client]bool // Clients with host privileges
+	screenshares map[*Client]bool // Clients currently sharing their screen
 }
 
-// run is an unexported method that starts the message broadcasting loop for the room.
-func (r *Room) run() {
-	for message := range r.broadcast {
-		r.mu.Lock()
-		for client := range r.clients {
-			select {
-			case client.send <- message:
-			default:
-				close(client.send)
-				delete(r.clients, client)
-			}
-		}
-		r.mu.Unlock()
+// NewRoom creates a new, stateful room.
+func NewRoom(id string) *Room {
+	return &Room{
+		ID:           id,
+		participants: make(map[*Client]bool),
+		waitingRoom:  make(map[*Client]bool),
+		handsRaised:  make(map[*Client]bool),
+		hosts:        make(map[*Client]bool),
+		screenshares: make(map[*Client]bool),
 	}
 }
 
-// AddClient adds a client to the room.
-func (r *Room) AddClient(client *Client) {
+// handleClientJoined places a new client in the waiting room or meeting.
+func (r *Room) handleClientJoined(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.clients[client] = true
+
+	// First user to join becomes the host.
+	if len(r.participants) == 0 && len(r.hosts) == 0 {
+		slog.Info("First user joined, making them host.", "room", r.ID, "userID", client.UserID)
+		client.Role = RoleTypeHost
+		r.hosts[client] = true
+		r.admitClient_unlocked(client)
+		return
+	}
+
+	slog.Info("User joined waiting room.", "room", r.ID, "userID", client.UserID)
+	client.Role = RoleTypeWaiting
+	r.waitingRoom[client] = true
+	r.notifyHostsOfWaitingUser_unlocked(client)
 }
 
-// RemoveClient removes a client from the room.
-func (r *Room) RemoveClient(client *Client) {
+// handleClientLeft manages cleanup when a client disconnects.
+func (r *Room) handleClientLeft(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, ok := r.clients[client]; ok {
-		delete(r.clients, client)
-		// Add a check to prevent closing a nil channel
-		if client.send != nil {
-			close(client.send)
+
+	wasParticipant := r.participants[client]
+
+	// Remove from all possible states
+	delete(r.waitingRoom, client)
+	delete(r.participants, client)
+	delete(r.handsRaised, client)
+	delete(r.screenshares, client)
+	delete(r.hosts, client)
+
+	slog.Info("Client disconnected and removed from room", "room", r.ID, "userID", client.UserID)
+
+	if wasParticipant {
+		r.broadcastRoomState_unlocked()
+	}
+}
+
+// handleMessage is the central router for all incoming messages from clients.
+func (r *Room) handleMessage(client *Client, msg Message) {
+	// Acquire lock once at the top level. This prevents deadlocks and races.
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	isParticipant := r.participants[client]
+	isHost := r.hosts[client]
+
+	switch msg.Type {
+	case MessageTypeChat:
+		if isParticipant {
+			r.handleChatMessage_unlocked(client, msg.Payload)
+		}
+	case MessageTypeRaiseHand:
+		if isParticipant {
+			r.handleRaiseHand_unlocked(client, msg.Payload)
+		}
+	case MessageTypeAdmitUser:
+		if isHost {
+			r.handleAdmitUser_unlocked(msg.Payload)
+		}
+	default:
+		slog.Warn("Received unknown message type", "type", msg.Type)
+	}
+}
+
+// --- Specific Action Handlers (all are now _unlocked) ---
+
+func (r *Room) handleChatMessage_unlocked(sender *Client, payload any) {
+	var p ChatPayload
+	if err := UnmarshalPayload(payload, &p); err != nil {
+		slog.Error("Failed to unmarshal ChatPayload", "error", err)
+		return
+	}
+	p.SenderID = sender.UserID
+	p.Timestamp = time.Now().Unix()
+
+	r.broadcastToParticipants_unlocked(MessageTypeChat, p)
+}
+
+func (r *Room) handleRaiseHand_unlocked(client *Client, payload any) {
+	var p RaiseHandPayload
+	if err := UnmarshalPayload(payload, &p); err != nil {
+		slog.Error("Failed to unmarshal RaiseHandPayload", "error", err)
+		return
+	}
+
+	if p.IsRaised {
+		r.handsRaised[client] = true
+	} else {
+		delete(r.handsRaised, client)
+	}
+	slog.Info("Hand state changed", "room", r.ID, "userID", client.UserID, "raised", p.IsRaised)
+	r.broadcastRoomState_unlocked()
+}
+
+func (r *Room) handleAdmitUser_unlocked(payload any) {
+	var p AdmitUserPayload
+	if err := UnmarshalPayload(payload, &p); err != nil {
+		slog.Error("Failed to unmarshal AdmitUserPayload", "error", err)
+		return
+	}
+
+	for waitingClient := range r.waitingRoom {
+		if waitingClient.UserID == p.TargetUserID {
+			delete(r.waitingRoom, waitingClient)
+			r.admitClient_unlocked(waitingClient)
+			slog.Info("User admitted from waiting room", "room", r.ID, "userID", waitingClient.UserID)
+			return
 		}
 	}
 }
 
+// --- Helper and Broadcast Methods ---
 
-// NewTestRoom creates a new Room for testing purposes and starts its run loop.
-func NewTestRoom(id string) *Room {
-	room := &Room{
-		ID:        id,
-		clients:   make(map[*Client]bool),
-		broadcast: make(chan []byte),
-	}
-	go room.run()
-	return room
+func (r *Room) admitClient_unlocked(client *Client) {
+	client.Role = RoleTypeParticipant
+	r.participants[client] = true
+	r.broadcastRoomState_unlocked()
 }
 
-// Broadcast sends a message to the room's broadcast channel.
-// This is a helper for testing. In the real app, this is triggered by a client's readPump.
-func (r *Room) Broadcast(message []byte) {
-	r.broadcast <- message
+func (r *Room) broadcastToParticipants_unlocked(msgType MessageType, payload any) {
+	msg := Message{Type: msgType, Payload: payload}
+	rawMsg, err := json.Marshal(msg)
+	if err != nil {
+		slog.Error("Failed to marshal broadcast message", "type", msgType, "error", err)
+		return
+	}
+
+	for p := range r.participants {
+		select {
+		case p.send <- rawMsg:
+		default:
+			// This case prevents a slow client from blocking the whole broadcast.
+		}
+	}
+}
+
+func (r *Room) broadcastRoomState_unlocked() {
+	participants := make(map[string]string)
+	for p := range r.participants {
+		participants[p.UserID] = p.UserID
+	}
+
+	handsRaised := make([]string, 0, len(r.handsRaised))
+	for c := range r.handsRaised {
+		handsRaised = append(handsRaised, c.UserID)
+	}
+
+	payload := RoomStatePayload{
+		RoomID:       r.ID,
+		Participants: participants,
+		HandsRaised:  handsRaised,
+	}
+
+	r.broadcastToParticipants_unlocked(EventTypeRoomState, payload)
+}
+
+func (r *Room) notifyHostsOfWaitingUser_unlocked(waitingClient *Client) {
+	payload := AdmissionRequestPayload{
+		UserID:      waitingClient.UserID,
+		DisplayName: waitingClient.UserID, // Use a real display name here
+	}
+	msg := Message{Type: EventTypeAdmissionRequest, Payload: payload}
+	rawMsg, err := json.Marshal(msg)
+	if err != nil {
+		slog.Error("Failed to marshal admission request", "error", err)
+		return
+	}
+
+	for host := range r.hosts {
+		select {
+		case host.send <- rawMsg:
+		default:
+		}
+	}
+}
+
+func UnmarshalPayload(payload any, target any) error {
+	rawPayload, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(rawPayload, target)
 }

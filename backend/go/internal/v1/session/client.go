@@ -1,52 +1,110 @@
 package session
 
 import (
-	"io"
-	"log"
+	"encoding/json"
+	"log/slog"
 
 	"github.com/gorilla/websocket"
 )
 
+// RoleType describes the type of client.
+type RoleType string
+
+const (
+	RoleTypeWaiting     RoleType = "waiting"
+	RoleTypeParticipant RoleType = "participant"
+	RoleTypeScreenshare RoleType = "screenshare"
+	RoleTypeHost        RoleType = "host"
+)
+
+// --- Role Interfaces (for type safety and clarity) ---
+type Waiting interface {
+	GetUserID() string
+	GetRole() RoleType
+	WaitingPrivileges()
+}
+type Participant interface {
+	GetUserID() string
+	GetRole() RoleType
+}
+type Screenshare interface {
+	Participant
+	ScreensharePrivileges()
+}
+type Host interface {
+	Participant
+	HostPrivileges()
+}
+
+// --- Concrete Client Types ---
+type HostClient struct{ Client }
+
+func (h *HostClient) HostPrivileges() {}
+
+type ScreenshareClient struct{ Client }
+
+func (s *ScreenshareClient) ScreensharePrivileges() {}
+
+type WaitingClient struct{ Client }
+
+func (w *WaitingClient) WaitingPrivileges() {}
+
+// --- Connection and Room Interfaces ---
 
 // wsConnection defines the methods we need from a websocket connection.
-// This allows for easy mocking in tests.
 type wsConnection interface {
 	ReadMessage() (messageType int, p []byte, err error)
 	WriteMessage(messageType int, data []byte) error
 	Close() error
 }
 
-// Client represents a single connected user.
-type Client struct {
-	// The WebSocket connection, using our interface.
-	conn wsConnection
-	// Buffered channel of outbound messages.
-	send chan []byte
-	// The room this client is in.
-	room *Room
+// Roomer defines the methods a Client needs to interact with a Room.
+// This allows us to use a real Room in production and a MockRoom in tests.
+type Roomer interface {
+	handleMessage(c *Client, msg Message)
+	handleClientLeft(c *Client)
 }
 
+// Client represents a single connected user.
+type Client struct {
+	conn   wsConnection
+	send   chan []byte
+	room   Roomer
+	UserID string
+	Role   RoleType
+}
 
-// readPump pumps messages from the WebSocket connection to the room's broadcast channel.
+func (c *Client) GetUserID() string {
+	return c.UserID
+}
+
+func (c *Client) GetRole() RoleType {
+	return c.Role
+}
+
+// readPump pumps messages from the WebSocket connection to the room's handler.
 func (c *Client) readPump() {
 	defer func() {
-		c.room.RemoveClient(c)
+		c.room.handleClientLeft(c)
 		c.conn.Close()
 	}()
 
 	for {
-		_, message, err := c.conn.ReadMessage()
+		_, rawMessage, err := c.conn.ReadMessage()
 		if err != nil {
-			// Treat io.EOF and websocket.CloseNormalClosure as normal closure, don't log as error
-			if err == io.EOF || websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-				break
-			}
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				slog.Warn("Unexpected client close", "userID", c.UserID, "error", err)
 			}
 			break
 		}
-		c.room.broadcast <- message
+
+		var msg Message
+		if err := json.Unmarshal(rawMessage, &msg); err != nil {
+			slog.Warn("Failed to unmarshal message", "userID", c.UserID, "error", err)
+			continue
+		}
+
+		c.room.handleMessage(c, msg)
 	}
 }
 
@@ -55,15 +113,8 @@ func (c *Client) writePump() {
 	defer c.conn.Close()
 	for message := range c.send {
 		if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
-			log.Printf("error writing message: %v", err)
+			slog.Error("error writing message", "error", err)
 			return
 		}
-	}
-}
-
-// NewTestClient is a helper for testing to create a client.
-func NewTestClient() *Client {
-	return &Client{
-		send: make(chan []byte, 1),
 	}
 }

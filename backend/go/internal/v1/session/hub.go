@@ -5,47 +5,32 @@ import (
 	"net/http"
 	"sync"
 
+	"Social-Media/backend/go/internal/v1/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
-// Hub manages all the active rooms. It is exported so it can be used in main.go.
+// TokenValidator defines the interface for a JWT validator.
+type TokenValidator interface {
+	ValidateToken(tokenString string) (*auth.CustomClaims, error)
+}
+
+// Hub manages all the active rooms and holds its dependencies.
 type Hub struct {
-	rooms    map[string]*Room
-	mu       sync.Mutex
-	upgrader websocket.Upgrader
+	rooms     map[string]*Room
+	mu        sync.Mutex
+	validator TokenValidator
 }
 
-// NewHub creates a new Hub and configures it with the provided allowed origins.
-func NewHub(allowedOrigins []string) *Hub {
-	//closure that captures the allowedOrigins slice.
-	checkOrigin := func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
-		for _, allowed := range allowedOrigins {
-			if allowed == origin {
-				// Log allowed connections for audit purposes.
-				// In a real app, you might use a more structured logger.
-				slog.Info("Origin allowed:", "origin", origin)
-				return true
-			}
-		}
-		slog.Error("Origin blocked:","origin", origin)
-		return false
-	}
-
-	upgrader := websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-		CheckOrigin:     checkOrigin,
-	}
-
+// NewHub creates a new Hub and configures it with its dependencies.
+func NewHub(validator TokenValidator) *Hub {
 	return &Hub{
-		rooms:    make(map[string]*Room),
-		upgrader: upgrader,
+		rooms:     make(map[string]*Room),
+		validator: validator,
 	}
 }
 
-// getOrCreateRoom is an unexported method to find an existing room or create a new one.
+// getOrCreateRoom creates a pointer to a room at the given id if it doesn't already exist.
 func (h *Hub) getOrCreateRoom(id string) *Room {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -54,38 +39,56 @@ func (h *Hub) getOrCreateRoom(id string) *Room {
 		return room
 	}
 
-	room := &Room{
-		ID:        id,
-		clients:   make(map[*Client]bool),
-		broadcast: make(chan []byte),
-	}
+	slog.Info("Creating new session room", "roomID", id)
+	room := NewRoom(id)
 	h.rooms[id] = room
-
-	go room.run()
-
 	return room
 }
 
-// ServeWs is an exported method that handles WebSocket requests from peers.
+// ServeWs authenticates the user and hands them off to the room.
 func (h *Hub) ServeWs(c *gin.Context) {
-	roomID := c.Param("roomId")
-	room := h.getOrCreateRoom(roomID)
-
-	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		slog.Error("Failed to upgrade connection for room %s: %v", roomID, err)
+	// --- AUTHENTICATION ---
+	tokenString := c.Query("token") // from Auth0
+	if tokenString == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token not provided"})
 		return
 	}
 
-	client := &Client{
-		conn: conn,
-		send: make(chan []byte, 256),
-		room: room,
+	claims, err := h.validator.ValidateToken(tokenString)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		return
 	}
-	room.AddClient(client)
 
-	slog.Info("Client connected to room %s. Total clients in room: %d", room.ID, len(room.clients))
+	upgrader := &websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+            // Gin's CORS middleware already handles origin checks.
+            return true
+        },
+	}
 
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		slog.Error("Failed to upgrade connection", "error", err)
+		return
+	}
+
+	// --- CLIENT & ROOM SETUP ---
+	roomID := c.Param("roomId")
+	room := h.getOrCreateRoom(roomID)
+
+	client := &Client{
+		conn:   conn,
+		send:   make(chan []byte, 256),
+		room:   room,
+		UserID: claims.Subject,
+		Role:   "participant",
+	}
+
+	// The room now handles the logic of what to do with the new client.
+	room.handleClientJoined(client)
+
+	// Start the client's goroutines.
 	go client.writePump()
 	go client.readPump()
 }

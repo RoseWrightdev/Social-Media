@@ -1,73 +1,84 @@
 package session
+
 import (
-	"net/http/httptest"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"Social-Media/backend/go/internal/v1/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-func TestNewHub(t *testing.T) {
-	hub := NewHub([]string{"localhost:3000"})
-	require.NotNil(t, hub)
-	assert.NotNil(t, hub.rooms)
-	assert.Equal(t, 0, len(hub.rooms))
+
+// MockValidator is a mock implementation of the TokenValidator interface for testing.
+type MockValidator struct {
+	ClaimsToReturn *auth.CustomClaims
+	ErrorToReturn  error
 }
 
+// ValidateToken is the mock implementation. It returns the pre-configured claims and error.
+func (m *MockValidator) ValidateToken(tokenString string) (*auth.CustomClaims, error) {
+	return m.ClaimsToReturn, m.ErrorToReturn
+}
+
+// NewTestHub creates a new Hub with a mock validator for testing purposes.
+func NewTestHub(mockValidator TokenValidator) *Hub {
+	if mockValidator == nil {
+		// Provide a default mock if none is given
+		mockValidator = &MockValidator{}
+	}
+	return NewHub(mockValidator)
+}
 
 func TestGetOrCreateRoom(t *testing.T) {
-	t.Run("should create room if there is no existing room", func (t *testing.T) {
-		hub := NewHub([]string{"localhost:3000"})
-		roomID := "room1"
-		room := hub.getOrCreateRoom(roomID)
-		require.NotNil(t, room)
-		assert.Equal(t, roomID, room.ID)
-		assert.Equal(t, 1, len(hub.rooms))
-		assert.Equal(t, room, hub.rooms[roomID])
+	hub := NewTestHub(nil) // Use the default mock validator
+	roomID := "test-room-1"
 
-	})
+	// First call should create the room
+	room1 := hub.getOrCreateRoom(roomID)
+	require.NotNil(t, room1, "getOrCreateRoom should not return nil")
+	assert.Equal(t, roomID, room1.ID, "Room ID should match the one provided")
 
-	t.Run("should return existing room if there is an existing room", func (t *testing.T) {
-		hub := NewHub([]string{"localhost:3000"})
-		roomID := "room1"
-		room1 := hub.getOrCreateRoom(roomID)
-		room2 := hub.getOrCreateRoom(roomID)
-		assert.Equal(t, room1, room2)
-	})
+	// Check internal state to be sure
+	hub.mu.Lock()
+	_, exists := hub.rooms[roomID]
+	hub.mu.Unlock()
+	assert.True(t, exists, "Room should exist in the hub's map after creation")
+
+	// Second call should return the exact same room instance
+	room2 := hub.getOrCreateRoom(roomID)
+	assert.Same(t, room1, room2, "Subsequent calls with the same ID should return the same room instance")
 }
 
-func TestServeWs(t *testing.T) {
-	t.Run("should return http.StatusBadRequest if there is a non-WebSocket request", func (t *testing.T) {
-		gin.SetMode(gin.TestMode)
-		hub := NewHub([]string{"localhost:3000"})
+func TestServeWs_AuthFailure(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("should fail if token is missing", func(t *testing.T) {
+		hub := NewTestHub(nil)
 		router := gin.New()
 		router.GET("/ws/:roomId", hub.ServeWs)
 
-		// Simulate a non-WebSocket request (should fail to upgrade)
-		req := httptest.NewRequest("GET", "/ws/testroom", nil)
+		req := httptest.NewRequest("GET", "/ws/test-room", nil) // No token query param
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Equal(t, http.StatusUnauthorized, w.Code, "Should return 401 Unauthorized if token is missing")
 	})
 
-	t.Run("", func (t *testing.T) {
-		// This test only checks that ServeWs creates a room and adds a client.
-		// Full WebSocket handshake is not performed in this unit test.
-		gin.SetMode(gin.TestMode)
-		hub := NewHub([]string{"localhost:3000"})
+	t.Run("should fail if token is invalid", func(t *testing.T) {
+		// Configure the mock validator to return an error
+		mockValidator := &MockValidator{
+			ErrorToReturn: assert.AnError,
+		}
+		hub := NewTestHub(mockValidator)
 		router := gin.New()
 		router.GET("/ws/:roomId", hub.ServeWs)
 
-		// Simulate a non-WebSocket request (should fail to upgrade)
-		req := httptest.NewRequest("GET", "/ws/room42", nil)
+		req := httptest.NewRequest("GET", "/ws/test-room?token=invalid-token", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Room should be created even if upgrade fails
-		room, ok := hub.rooms["room42"]
-		assert.True(t, ok)
-		assert.NotNil(t, room)
+		assert.Equal(t, http.StatusUnauthorized, w.Code, "Should return 401 Unauthorized if token is invalid")
 	})
 }
