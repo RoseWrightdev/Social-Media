@@ -23,7 +23,16 @@ type Room struct {
 	onEmpty func(string)
 }
 
-// NewRoom creates a new, stateful room.
+// NewRoom creates and returns a new Room instance with the specified ID and an onEmpty callback.
+// The Room is initialized with empty participant, waiting room, hands raised, hosts, and screenshares maps.
+// The onEmptyCallback is called when the room becomes empty preventing a memory leak!
+//
+// Parameters:
+//   id - the unique identifier for the room.
+//   onEmptyCallback - a function to be called when the room becomes empty.
+//
+// Returns:
+//   A pointer to the newly created Room.
 func NewRoom(id string, onEmptyCallback func(string)) *Room {
 	return &Room{
 		ID:           id,
@@ -36,7 +45,9 @@ func NewRoom(id string, onEmptyCallback func(string)) *Room {
 	}
 }
 
-// handleClientJoined places a new client in the waiting room or meeting.
+// handleClientJoined manages the logic for when a client joins the room.
+// If the room has no participants or hosts, the first client becomes the host and is admitted immediately.
+// Otherwise, the client is placed in the waiting room and hosts are notified of the waiting user.
 func (r *Room) handleClientJoined(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -57,6 +68,11 @@ func (r *Room) handleClientJoined(client *Client) {
 }
 
 // handleClientLeft manages cleanup when a client disconnects.
+// handleClientLeft removes the specified client from all room-related states,
+// including participants, waiting room, hands raised, screenshares, and hosts.
+// It logs the disconnection event. If the client was a participant and the room
+// becomes empty as a result, it triggers the onEmpty callback in a separate goroutine.
+// Otherwise, it broadcasts the updated room state to remaining clients.
 func (r *Room) handleClientLeft(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -86,6 +102,11 @@ func (r *Room) handleClientLeft(client *Client) {
 }
 
 // handleMessage is the central router for all incoming messages from clients.
+// handleMessage processes an incoming message from a client within the room.
+// It acquires a lock to ensure thread safety and determines the client's role
+// (participant or host) before dispatching the message to the appropriate handler
+// based on its type. Supported message types include chat, raise hand, and admit user.
+// Unknown message types are logged as warnings.
 func (r *Room) handleMessage(client *Client, msg Message) {
 	// Acquire lock once at the top level. This prevents deadlocks and races.
 	r.mu.Lock()
@@ -114,6 +135,10 @@ func (r *Room) handleMessage(client *Client, msg Message) {
 
 // --- Specific Action Handlers (all are now _unlocked) ---
 
+// handleChatMessage_unlocked processes an incoming chat message from a sender client.
+// It unmarshals the payload into a ChatPayload, sets the sender's user ID and the current timestamp,
+// and broadcasts the chat message to all participants in the room.
+// This method assumes the caller has already acquired the necessary locks for thread safety.
 func (r *Room) handleChatMessage_unlocked(sender *Client, payload any) {
 	var p ChatPayload
 	if err := UnmarshalPayload(payload, &p); err != nil {
@@ -126,6 +151,10 @@ func (r *Room) handleChatMessage_unlocked(sender *Client, payload any) {
 	r.broadcastToParticipants_unlocked(MessageTypeChat, p)
 }
 
+// handleRaiseHand_unlocked processes a client's request to raise or lower their hand in the room.
+// It unmarshals the payload into a RaiseHandPayload, updates the handsRaised map accordingly,
+// logs the change, and broadcasts the updated room state to all clients.
+// This method assumes the caller holds the necessary room lock.
 func (r *Room) handleRaiseHand_unlocked(client *Client, payload any) {
 	var p RaiseHandPayload
 	if err := UnmarshalPayload(payload, &p); err != nil {
@@ -142,6 +171,10 @@ func (r *Room) handleRaiseHand_unlocked(client *Client, payload any) {
 	r.broadcastRoomState_unlocked()
 }
 
+// handleAdmitUser_unlocked processes a request to admit a user from the waiting room.
+// It unmarshals the payload into an AdmitUserPayload, searches for the target user in the waiting room,
+// removes them if found, and admits them to the room. Logs errors and admission events.
+// This method must be called with the Room's lock already held.
 func (r *Room) handleAdmitUser_unlocked(payload any) {
 	var p AdmitUserPayload
 	if err := UnmarshalPayload(payload, &p); err != nil {
@@ -161,12 +194,18 @@ func (r *Room) handleAdmitUser_unlocked(payload any) {
 
 // --- Helper and Broadcast Methods ---
 
+// admitClient_unlocked adds the given client to the room's participants list and sets their role to participant.
+// It then broadcasts the updated room state to all clients.
+// This method is not thread-safe and should only be called when the room's lock is already held.
 func (r *Room) admitClient_unlocked(client *Client) {
 	client.Role = RoleTypeParticipant
 	r.participants[client] = true
 	r.broadcastRoomState_unlocked()
 }
 
+// broadcastToParticipants_unlocked sends a message of the specified type and payload to all participants in the room.
+// The message is marshaled to JSON before being sent. If marshaling fails, an error is logged and the broadcast is aborted.
+// Each participant receives the message via their send channel; if a participant's channel is blocked, the message is skipped for that participant to prevent blocking the broadcast.
 func (r *Room) broadcastToParticipants_unlocked(msgType MessageType, payload any) {
 	msg := Message{Type: msgType, Payload: payload}
 	rawMsg, err := json.Marshal(msg)
@@ -184,6 +223,8 @@ func (r *Room) broadcastToParticipants_unlocked(msgType MessageType, payload any
 	}
 }
 
+// broadcastRoomState_unlocked constructs the current state of the room, including the list of participants and those with raised hands,
+// and broadcasts this state to all participants in the room. This method assumes the caller holds the necessary locks for thread safety.
 func (r *Room) broadcastRoomState_unlocked() {
 	participants := make(map[string]string)
 	for p := range r.participants {
@@ -204,6 +245,10 @@ func (r *Room) broadcastRoomState_unlocked() {
 	r.broadcastToParticipants_unlocked(EventTypeRoomState, payload)
 }
 
+// notifyHostsOfWaitingUser_unlocked notifies all hosts in the room about a user waiting for admission.
+// It constructs an admission request message for the specified waiting client and sends it to each host's
+// send channel. If the message cannot be marshaled to JSON, an error is logged and no notifications are sent.
+// This method assumes the caller holds the necessary room lock.
 func (r *Room) notifyHostsOfWaitingUser_unlocked(waitingClient *Client) {
 	payload := AdmissionRequestPayload{
 		UserID:      waitingClient.UserID,
@@ -224,6 +269,16 @@ func (r *Room) notifyHostsOfWaitingUser_unlocked(waitingClient *Client) {
 	}
 }
 
+// UnmarshalPayload marshals the given payload to JSON and then unmarshals it into the target.
+// This function is useful for converting between types by serializing and deserializing via JSON.
+// It returns an error if marshaling or unmarshaling fails.
+//
+// Parameters:
+//   - payload: The input data to be marshaled to JSON.
+//   - target: A pointer to the variable where the unmarshaled data will be stored.
+//
+// Returns:
+//   - error: An error if marshaling or unmarshaling fails, otherwise nil.
 func UnmarshalPayload(payload any, target any) error {
 	rawPayload, err := json.Marshal(payload)
 	if err != nil {

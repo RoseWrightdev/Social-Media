@@ -42,7 +42,9 @@ func (h *Hub) removeRoom(roomID string) {
 	}
 }
 
-// getOrCreateRoom creates a pointer to a room at the given id if it doesn't already exist.
+// getOrCreateRoom retrieves the Room associated with the given id from the Hub.
+// If the Room does not exist, it creates a new Room, stores it in the Hub, and returns it.
+// This method is safe for concurrent use.
 func (h *Hub) getOrCreateRoom(id string) *Room {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -58,6 +60,19 @@ func (h *Hub) getOrCreateRoom(id string) *Room {
 }
 
 // ServeWs authenticates the user and hands them off to the room.
+// ServeWs upgrades an HTTP request to a WebSocket connection for real-time communication.
+// It authenticates the user using a JWT token provided as a query parameter, validates the token,
+// and establishes a WebSocket connection. Upon successful authentication and upgrade, it creates
+// or retrieves a room based on the roomId path parameter, initializes a new client, and registers
+// the client with the room. The client's read and write goroutines are started to handle message
+// exchange over the WebSocket connection.
+//
+// Parameters:
+//   - c: *gin.Context representing the HTTP request context.
+//
+// Responses:
+//   - 401 Unauthorized if the token is missing or invalid.
+//   - Upgrades to WebSocket on success.
 func (h *Hub) ServeWs(c *gin.Context) {
 	// --- AUTHENTICATION ---
 	tokenString := c.Query("token") // from Auth0

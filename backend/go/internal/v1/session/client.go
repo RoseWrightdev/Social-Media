@@ -74,15 +74,20 @@ type Client struct {
 	Role   RoleType
 }
 
+// GetUserID returns the user ID associated with the client.
 func (c *Client) GetUserID() string {
 	return c.UserID
 }
 
+// GetRole returns the role type associated with the client.
 func (c *Client) GetRole() RoleType {
 	return c.Role
 }
 
-// readPump pumps messages from the WebSocket connection to the room's handler.
+// readPump continuously reads messages from the client's WebSocket connection.
+// It unmarshals incoming messages into the Message struct and passes them to the room's handleMessage method.
+// If the connection is closed or an error occurs, it logs the event and ensures the client is removed from the room.
+// Ran as a goroutine.
 func (c *Client) readPump() {
 	defer func() {
 		c.room.handleClientLeft(c)
@@ -108,7 +113,9 @@ func (c *Client) readPump() {
 	}
 }
 
-// writePump pumps messages from the client's send channel to the WebSocket connection.
+// writePump continuously reads messages from the Client's send channel and writes them to the WebSocket connection.
+// If an error occurs while writing a message, it logs the error and terminates the loop, closing the connection.
+// This method is intended to be run as a goroutine to handle outgoing messages for the client.
 func (c *Client) writePump() {
 	defer c.conn.Close()
 	for message := range c.send {

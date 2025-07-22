@@ -11,21 +11,36 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
-// CustomClaims includes the standard JWT claims plus any custom claims.
+// CustomClaims represents custom JWT claims used for authentication.
+// It embeds jwt.RegisteredClaims and adds a Scope field to specify the user's access scope.
 type CustomClaims struct {
 	Scope string `json:"scope"`
 	jwt.RegisteredClaims
 }
 
-// Validator holds the configuration needed to validate a JWT.
+// Validator provides JWT validation functionality, including key retrieval,
+// issuer verification, and audience checks.
 type Validator struct {
 	keyFunc    jwt.Keyfunc
 	issuer     string
 	audience   []string
 }
 
-// NewValidator creates a new JWT validator. It now accepts optional jwk.RegisterOption
-// parameters, which makes it possible to inject a custom http.Client for testing.
+// NewValidator creates a new Validator instance for JWT validation using JWKS from the specified domain.
+// It parses the issuer URL, registers the JWKS endpoint with a cache, and ensures initial connectivity
+// by fetching the keys. The function allows additional jwk.RegisterOption parameters for customization,
+// which are combined with a default refresh interval. The returned Validator uses a keyFunc that retrieves
+// the appropriate public key for JWT verification based on the "kid" header.
+//
+// Parameters:
+//   ctx      - Context for cancellation and timeout control.
+//   domain   - The domain to construct the issuer and JWKS URLs.
+//   audience - The expected audience claim for JWT validation.
+//   regOpts  - Optional jwk.RegisterOption values for JWKS cache registration.
+//
+// Returns:
+//   *Validator - A configured Validator ready for JWT validation.
+//   error      - An error if any step in the setup fails (e.g., URL parsing, JWKS registration, key fetching)
 func NewValidator(ctx context.Context, domain, audience string, regOpts ...jwk.RegisterOption) (*Validator, error) {
 	issuerURL, err := url.Parse("https://" + domain + "/")
 	if err != nil {
@@ -83,7 +98,16 @@ func NewValidator(ctx context.Context, domain, audience string, regOpts ...jwk.R
 	}, nil
 }
 
-// ValidateToken parses and validates a raw JWT string.
+// ValidateToken parses and validates a JWT token string using the configured key function,
+// issuer, and audience. It returns the token's custom claims if the token is valid.
+// If the token is invalid or cannot be parsed, an error is returned.
+//
+// Parameters:
+//   - tokenString: the JWT token string to validate.
+//
+// Returns:
+//   - *CustomClaims: the custom claims extracted from the token if valid.
+//   - error: an error if the token is invalid or parsing fails.
 func (v *Validator) ValidateToken(tokenString string) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, v.keyFunc,
 		jwt.WithIssuer(v.issuer),
