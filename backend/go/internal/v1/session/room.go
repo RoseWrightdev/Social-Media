@@ -78,7 +78,6 @@ func (r *Room) handleClientLeft(client *Client) {
 
 	// Remove from all possible states
 	delete(r.waitingRoom, client.UserID)
-	delete(r.participants, client.UserID)
 	delete(r.handsRaised, client.UserID)
 	delete(r.screenshares, client.UserID)
 	delete(r.hosts, client.UserID)
@@ -94,6 +93,7 @@ func (r *Room) handleClientLeft(client *Client) {
 			r.broadcastRoomState_unlocked()
 		}
 	}
+		delete(r.participants, client.UserID)
 }
 
 
@@ -179,7 +179,7 @@ func (r *Room) handleAdmitUser_unlocked(payload any) {
 	if waitingClient, ok := r.waitingRoom[p.TargetUserID]; ok {
 		delete(r.waitingRoom, p.TargetUserID)
 		r.admitClient_unlocked(waitingClient)
-		slog.Info("User admitted from waiting room", "room", r.ID, "userID", ok)
+		slog.Info("User admitted from waiting room", "room", r.ID, "userID", waitingClient.UserID)
 		return
 	}
 }
