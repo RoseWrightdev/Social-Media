@@ -3,10 +3,11 @@ info:
   title: Real-time Signaling Service API
   description: |-
     This API provides WebSocket endpoints for real-time communication features, including video calls, screen sharing, and text chat.
-    Clients connect to these endpoints to join specific rooms and exchange signaling or chat messages.
-  version: 1.0.0
+
+    **Authentication is required for all endpoints.** A valid JWT must be provided as a `token` query parameter with each connection request.
+  version: "1.0.0"
 servers:
-  - url: 'ws://localhost:8080'
+  - url: "ws://localhost:8080"
     description: Local development server
 
 tags:
@@ -20,8 +21,9 @@ paths:
         - WebSockets
       summary: Establish a WebSocket connection for a video call.
       description: |-
-        Upgrades the HTTP connection to a WebSocket connection to join a specific video call room.
-        Once connected, clients can send and receive WebRTC signaling messages (offers, answers, ICE candidates) to other participants in the same room.
+        Upgrades the HTTP connection to a WebSocket to join a video call room.
+        Authentication via a `token` query parameter is required.
+        Clients can send/receive WebRTC signaling messages once connected.
       parameters:
         - name: roomId
           in: path
@@ -30,11 +32,15 @@ paths:
           schema:
             type: string
             example: "meeting-12345"
+      security:
+        - bearerAuth: []
       responses:
         '101':
-          description: Switching protocols to WebSocket. This indicates a successful connection upgrade.
-        '400':
-          description: Bad Request. This can occur if the request is not a valid WebSocket upgrade request or if the 'Origin' header is not in the list of allowed origins.
+          description: Switching protocols to WebSocket, indicating a successful connection.
+        '401':
+          description: Unauthorized. The `token` query parameter is missing, invalid, or expired.
+        '403':
+          description: Forbidden. The request's `Origin` header is not in the list of allowed origins.
 
   /ws/screenshare/{roomId}:
     get:
@@ -42,8 +48,8 @@ paths:
         - WebSockets
       summary: Establish a WebSocket connection for screen sharing.
       description: |-
-        Upgrades the HTTP connection to a WebSocket connection to join a specific screen sharing session.
-        This channel is used to broadcast screen sharing streams or signaling data related to the screen share.
+        Upgrades the HTTP connection to a WebSocket to join a screen share session.
+        Authentication via a `token` query parameter is required.
       parameters:
         - name: roomId
           in: path
@@ -52,11 +58,15 @@ paths:
           schema:
             type: string
             example: "share-session-abc"
+      security:
+        - bearerAuth: []
       responses:
         '101':
           description: Switching protocols to WebSocket.
-        '400':
-          description: Bad Request. Invalid upgrade request or disallowed origin.
+        '401':
+          description: Unauthorized. The `token` query parameter is missing, invalid, or expired.
+        '403':
+          description: Forbidden. The request's `Origin` header is not in the list of allowed origins.
 
   /ws/chat/{roomId}:
     get:
@@ -64,8 +74,8 @@ paths:
         - WebSockets
       summary: Establish a WebSocket connection for text chat.
       description: |-
-        Upgrades the HTTP connection to a WebSocket connection to join a text chat room.
-        All messages sent by a client will be broadcast to all other clients in the same room.
+        Upgrades the HTTP connection to a WebSocket to join a text chat room.
+        Authentication via a `token` query parameter is required.
       parameters:
         - name: roomId
           in: path
@@ -74,11 +84,20 @@ paths:
           schema:
             type: string
             example: "general-chat"
+      security:
+        - bearerAuth: []
       responses:
         '101':
           description: Switching protocols to WebSocket.
-        '400':
-          description: Bad Request. Invalid upgrade request or disallowed origin.
+        '401':
+          description: Unauthorized. The `token` query parameter is missing, invalid, or expired.
+        '403':
+          description: Forbidden. The request's `Origin` header is not in the list of allowed origins.
 
 components:
-  schemas: {} # No complex request/response bodies for the initial handshake.
+  securitySchemes:
+    bearerAuth:
+      type: apiKey
+      in: query
+      name: token
+      description: "JWT token obtained from the authentication provider (e.g., Auth0) used to authenticate the WebSocket connection request."
