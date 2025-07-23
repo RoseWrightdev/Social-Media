@@ -21,11 +21,11 @@ func newTestClient(userID string) *Client {
 func NewTestRoom(id string, onEmptyCallback func(string)) *Room {
 	return &Room{
 		ID:           id,
-		participants: make(map[*Client]bool),
-		waitingRoom:  make(map[*Client]bool),
-		handsRaised:  make(map[*Client]bool),
-		hosts:        make(map[*Client]bool),
-		screenshares: make(map[*Client]bool),
+		participants: make(map[string]*Client),
+		waitingRoom:  make(map[string]*Client),
+		handsRaised:  make(map[string]*Client),
+		hosts:        make(map[string]*Client),
+		screenshares: make(map[string]*Client),
 		onEmpty:      onEmptyCallback,
 	}
 }
@@ -52,8 +52,8 @@ func TestHandleClientJoined(t *testing.T) {
 		room.handleClientJoined(client1)
 
 		room.mu.RLock()
-		assert.True(t, room.hosts[client1], "First client should be a host")
-		assert.True(t, room.participants[client1], "First client should be a participant")
+		require.NotNil(t, room.hosts[client1.UserID], "First client should be a host")
+		require.NotNil(t, room.participants[client1.UserID], "First client should be a participant")
 		assert.Empty(t, room.waitingRoom, "Waiting room should be empty")
 		room.mu.RUnlock()
 
@@ -82,8 +82,8 @@ func TestHandleClientJoined(t *testing.T) {
 		room.handleClientJoined(waitingClient)
 
 		room.mu.RLock()
-		assert.False(t, room.participants[waitingClient], "Second client should not be a participant yet")
-		assert.True(t, room.waitingRoom[waitingClient], "Second client should be in the waiting room")
+		require.Nil(t, room.participants[waitingClient.UserID], "Second client should not be a participant yet")
+		require.NotNil(t, room.waitingRoom[waitingClient.UserID], "Second client should be in the waiting room")
 		assert.Equal(t, RoleTypeWaiting, waitingClient.Role, "Waiting client's role should be set to waiting")
 		room.mu.RUnlock()
 	})
@@ -178,7 +178,7 @@ func TestHandleMessage_RaiseHand(t *testing.T) {
 	room.handleMessage(client, msg)
 
 	room.mu.RLock()
-	assert.True(t, room.handsRaised[client], "Client should be in handsRaised map")
+	require.NotNil(t, room.handsRaised[client.UserID], "Client should be in handsRaised map")
 	room.mu.RUnlock()
 
 	// Check for state broadcast
@@ -217,14 +217,14 @@ func TestHandleMessage_AdmitUser(t *testing.T) {
 	nonHost.Role = RoleTypeParticipant
 	room.handleMessage(nonHost, msg)
 	room.mu.RLock()
-	assert.True(t, room.waitingRoom[waitingUser], "User should still be in waiting room after non-host attempt")
+	require.NotNil(t, room.waitingRoom[waitingUser.UserID], "User should still be in waiting room after non-host attempt")
 	room.mu.RUnlock()
 
 	// Host can admit
 	room.handleMessage(host, msg)
 	room.mu.RLock()
-	assert.False(t, room.waitingRoom[waitingUser], "User should no longer be in waiting room")
-	assert.True(t, room.participants[waitingUser], "User should now be a participant")
+	require.Nil(t, room.waitingRoom[waitingUser.UserID], "User should no longer be in waiting room")
+	require.NotNil(t, room.participants[waitingUser.UserID], "User should now be a participant")
 	assert.Equal(t, RoleTypeParticipant, waitingUser.Role)
 	room.mu.RUnlock()
 }
@@ -236,9 +236,9 @@ func TestBroadcastToParticipantsUnlocked(t *testing.T) {
 
 	// Add clients as participants
 	room.mu.Lock()
-	room.participants[client1] = true
-	room.participants[client2] = true
-	room.participants[client3] = true
+	room.participants[client1.UserID] = client1
+	room.participants[client2.UserID] = client2
+	room.participants[client3.UserID] = client3
 	room.mu.Unlock()
 
 	payload := ChatPayload{SenderID: "user1", Content: "Broadcast message"}
@@ -269,9 +269,9 @@ func TestBroadcastRoomStateUnlocked(t *testing.T) {
 	client2 := newTestClient("user2")
 
 	room.mu.Lock()
-	room.participants[client1] = true
-	room.participants[client2] = true
-	room.handsRaised[client2] = true
+	room.participants[client1.UserID] = client1
+	room.participants[client2.UserID] = client2
+	room.handsRaised[client2.UserID]  = client2
 	room.mu.Unlock()
 
 	room.mu.RLock()
@@ -307,7 +307,7 @@ func TestBroadcastToParticipantsUnlocked_MarshalError(t *testing.T) {
 	room := NewTestRoom("test-marshal-error", nil)
 	client := newTestClient("user1")
 	room.mu.Lock()
-	room.participants[client] = true
+	room.participants[client.UserID] = client
 	room.mu.Unlock()
 
 	// Create a payload that cannot be marshaled (channel type)

@@ -13,11 +13,11 @@ type Room struct {
 	mu sync.RWMutex
 
 	// State Management
-	participants map[*Client]bool // Clients who are in the main meeting
-	waitingRoom  map[*Client]bool // Clients waiting for admission
-	handsRaised  map[*Client]bool // Participants with their hand raised
-	hosts        map[*Client]bool // Clients with host privileges
-	screenshares map[*Client]bool // Clients currently sharing their screen
+	participants map[string]*Client // Clients who are in the main meeting
+	waitingRoom  map[string]*Client // Clients waiting for admission
+	handsRaised  map[string]*Client // Participants with their hand raised
+	hosts        map[string]*Client // Clients with host privileges
+	screenshares map[string]*Client // Clients currently sharing their screen
 
 	// onEmpty is the callback function to call when the room has no more participants.
 	onEmpty func(string)
@@ -36,11 +36,11 @@ type Room struct {
 func NewRoom(id string, onEmptyCallback func(string)) *Room {
 	return &Room{
 		ID:           id,
-		participants: make(map[*Client]bool),
-		waitingRoom:  make(map[*Client]bool),
-		handsRaised:  make(map[*Client]bool),
-		hosts:        make(map[*Client]bool),
-		screenshares: make(map[*Client]bool),
+		participants: make(map[string]*Client),
+		waitingRoom:  make(map[string]*Client),
+		handsRaised:  make(map[string]*Client),
+		hosts:        make(map[string]*Client),
+		screenshares: make(map[string]*Client),
 		onEmpty:      onEmptyCallback,
 	}
 }
@@ -56,14 +56,14 @@ func (r *Room) handleClientJoined(client *Client) {
 	if len(r.participants) == 0 && len(r.hosts) == 0 {
 		slog.Info("First user joined, making them host.", "room", r.ID, "userID", client.UserID)
 		client.Role = RoleTypeHost
-		r.hosts[client] = true
+		r.hosts[client.UserID] = client
 		r.admitClient_unlocked(client)
 		return
 	}
 
 	slog.Info("User joined waiting room.", "room", r.ID, "userID", client.UserID)
 	client.Role = RoleTypeWaiting
-	r.waitingRoom[client] = true
+	r.waitingRoom[client.UserID] = client
 	r.notifyHostsOfWaitingUser_unlocked(client)
 }
 
@@ -75,18 +75,17 @@ func (r *Room) handleClientLeft(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	wasParticipant := r.participants[client]
 
 	// Remove from all possible states
-	delete(r.waitingRoom, client)
-	delete(r.participants, client)
-	delete(r.handsRaised, client)
-	delete(r.screenshares, client)
-	delete(r.hosts, client)
+	delete(r.waitingRoom, client.UserID)
+	delete(r.participants, client.UserID)
+	delete(r.handsRaised, client.UserID)
+	delete(r.screenshares, client.UserID)
+	delete(r.hosts, client.UserID)
 
 	slog.Info("Client disconnected and removed from room", "room", r.ID, "userID", client.UserID)
 
-	if wasParticipant {
+	if 	_, ok := r.participants[client.UserID]; ok{
 		if len(r.participants) == 0 {
 			if r.onEmpty != nil {
 				go r.onEmpty(r.ID) // Run in a goroutine to avoid potential deadlocks
@@ -96,6 +95,7 @@ func (r *Room) handleClientLeft(client *Client) {
 		}
 	}
 }
+
 
 // handleMessage is the central router for all incoming messages from clients.
 // handleMessage processes an incoming message from a client within the room.
@@ -107,8 +107,8 @@ func (r *Room) handleMessage(client *Client, msg Message) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	isParticipant := r.participants[client]
-	isHost := r.hosts[client]
+	_, isParticipant := r.participants[client.UserID]
+	_, isHost := r.hosts[client.UserID]
 
 	switch msg.Type {
 	case MessageTypeChat:
@@ -158,9 +158,9 @@ func (r *Room) handleRaiseHand_unlocked(client *Client, payload any) {
 	}
 
 	if p.IsRaised {
-		r.handsRaised[client] = true
+		r.handsRaised[client.UserID] = client
 	} else {
-		delete(r.handsRaised, client)
+		delete(r.handsRaised, client.UserID)
 	}
 	slog.Info("Hand state changed", "room", r.ID, "userID", client.UserID, "raised", p.IsRaised)
 	r.broadcastRoomState_unlocked()
@@ -176,14 +176,11 @@ func (r *Room) handleAdmitUser_unlocked(payload any) {
 		slog.Error("Failed to unmarshal AdmitUserPayload", "error", err)
 		return
 	}
-
-	for waitingClient := range r.waitingRoom {
-		if waitingClient.UserID == p.TargetUserID {
-			delete(r.waitingRoom, waitingClient)
-			r.admitClient_unlocked(waitingClient)
-			slog.Info("User admitted from waiting room", "room", r.ID, "userID", waitingClient.UserID)
-			return
-		}
+	if waitingClient, ok := r.waitingRoom[p.TargetUserID]; ok {
+		delete(r.waitingRoom, p.TargetUserID)
+		r.admitClient_unlocked(waitingClient)
+		slog.Info("User admitted from waiting room", "room", r.ID, "userID", ok)
+		return
 	}
 }
 
@@ -194,7 +191,7 @@ func (r *Room) handleAdmitUser_unlocked(payload any) {
 // This method is not thread-safe and should only be called when the room's lock is already held.
 func (r *Room) admitClient_unlocked(client *Client) {
 	client.Role = RoleTypeParticipant
-	r.participants[client] = true
+	r.participants[client.UserID] = client
 	r.broadcastRoomState_unlocked()
 }
 
@@ -209,7 +206,7 @@ func (r *Room) broadcastToParticipants_unlocked(msgType MessageType, payload any
 		return
 	}
 
-	for p := range r.participants {
+	for _, p := range r.participants {
 		select {
 		case p.send <- rawMsg:
 		default:
@@ -222,7 +219,7 @@ func (r *Room) broadcastToParticipants_unlocked(msgType MessageType, payload any
 // and broadcasts this state to all participants in the room. This method assumes the caller holds the necessary locks for thread safety.
 func (r *Room) broadcastRoomState_unlocked() {
 	participantsList := make([]ParticipantInfo, 0, len(r.participants))
-	for p := range r.participants {
+	for _, p := range r.participants {
 		participantsList = append(participantsList, ParticipantInfo{
 			UserID:      p.UserID,
 			DisplayName: p.DisplayName,
@@ -230,8 +227,8 @@ func (r *Room) broadcastRoomState_unlocked() {
 	}
 
 	handsRaisedList := make([]string, 0, len(r.handsRaised))
-	for c := range r.handsRaised {
-		handsRaisedList = append(handsRaisedList, c.UserID)
+	for userID := range r.handsRaised {
+		handsRaisedList = append(handsRaisedList, userID)
 	}
 
 	payload := RoomStatePayload{
@@ -259,7 +256,7 @@ func (r *Room) notifyHostsOfWaitingUser_unlocked(waitingClient *Client) {
 		return
 	}
 
-	for host := range r.hosts {
+	for _, host := range r.hosts {
 		select {
 		case host.send <- rawMsg:
 		default:
