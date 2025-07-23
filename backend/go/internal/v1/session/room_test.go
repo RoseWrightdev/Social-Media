@@ -17,6 +17,33 @@ func newTestClient(userID string) *Client {
 	}
 }
 
+// NewTestRoom creates a new, stateful room for testing purposes.
+func NewTestRoom(id string, onEmptyCallback func(string)) *Room {
+	return &Room{
+		ID:           id,
+		participants: make(map[*Client]bool),
+		waitingRoom:  make(map[*Client]bool),
+		handsRaised:  make(map[*Client]bool),
+		hosts:        make(map[*Client]bool),
+		screenshares: make(map[*Client]bool),
+		onEmpty:      onEmptyCallback,
+	}
+}
+
+// TestNewRoom verifies that a new Room instance is correctly initialized.
+func TestNewRoom(t *testing.T) {
+	roomID := "test-init-room"
+	room := NewTestRoom(roomID, nil)
+
+	require.NotNil(t, room, "NewRoom should not return nil")
+	assert.Equal(t, roomID, room.ID, "Room ID should be set correctly")
+	assert.NotNil(t, room.participants, "participants map should be initialized")
+	assert.NotNil(t, room.waitingRoom, "waitingRoom map should be initialized")
+	assert.NotNil(t, room.handsRaised, "handsRaised map should be initialized")
+	assert.NotNil(t, room.hosts, "hosts map should be initialized")
+	assert.NotNil(t, room.screenshares, "screenshares map should be initialized")
+}
+
 func TestHandleClientJoined(t *testing.T) {
 	t.Run("first client becomes host and is admitted", func(t *testing.T) {
 		room := NewTestRoom("test-host-room", nil)
@@ -143,7 +170,7 @@ func TestHandleMessage_RaiseHand(t *testing.T) {
 	room := NewTestRoom("test-raise-hand", nil)
 	client := newTestClient("user1")
 	room.handleClientJoined(client) // Becomes host
-	<-client.send                  // Clear initial state
+	<-client.send                   // Clear initial state
 
 	// Raise hand
 	raiseHandPayload := RaiseHandPayload{IsRaised: true}

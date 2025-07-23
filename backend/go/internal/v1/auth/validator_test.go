@@ -18,7 +18,6 @@ import (
 )
 
 // --- Test Helpers ---
-
 // setupTestKeys generates a new RSA key pair for testing.
 func setupTestKeys(t *testing.T) *rsa.PrivateKey {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)

@@ -15,16 +15,16 @@ import (
 // It embeds jwt.RegisteredClaims and adds a Scope field to specify the user's access scope.
 type CustomClaims struct {
 	Scope string `json:"scope"`
-	Name string `json:"name,omitempty"`
+	Name  string `json:"name,omitempty"`
 	jwt.RegisteredClaims
 }
 
 // Validator provides JWT validation functionality, including key retrieval,
 // issuer verification, and audience checks.
 type Validator struct {
-	keyFunc    jwt.Keyfunc
-	issuer     string
-	audience   []string
+	keyFunc  jwt.Keyfunc
+	issuer   string
+	audience []string
 }
 
 // NewValidator creates a new Validator instance for JWT validation using JWKS from the specified domain.
@@ -34,14 +34,16 @@ type Validator struct {
 // the appropriate public key for JWT verification based on the "kid" header.
 //
 // Parameters:
-//   ctx      - Context for cancellation and timeout control.
-//   domain   - The domain to construct the issuer and JWKS URLs.
-//   audience - The expected audience claim for JWT validation.
-//   regOpts  - Optional jwk.RegisterOption values for JWKS cache registration.
+//
+//	ctx      - Context for cancellation and timeout control.
+//	domain   - The domain to construct the issuer and JWKS URLs.
+//	audience - The expected audience claim for JWT validation.
+//	regOpts  - Optional jwk.RegisterOption values for JWKS cache registration.
 //
 // Returns:
-//   *Validator - A configured Validator ready for JWT validation.
-//   error      - An error if any step in the setup fails (e.g., URL parsing, JWKS registration, key fetching)
+//
+//	*Validator - A configured Validator ready for JWT validation.
+//	error      - An error if any step in the setup fails (e.g., URL parsing, JWKS registration, key fetching)
 func NewValidator(ctx context.Context, domain, audience string, regOpts ...jwk.RegisterOption) (*Validator, error) {
 	issuerURL, err := url.Parse("https://" + domain + "/")
 	if err != nil {
@@ -93,9 +95,9 @@ func NewValidator(ctx context.Context, domain, audience string, regOpts ...jwk.R
 	}
 
 	return &Validator{
-		keyFunc:    keyFunc,
-		issuer:     issuerURL.String(),
-		audience:   []string{audience},
+		keyFunc:  keyFunc,
+		issuer:   issuerURL.String(),
+		audience: []string{audience},
 	}, nil
 }
 
