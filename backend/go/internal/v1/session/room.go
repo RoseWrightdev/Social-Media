@@ -25,14 +25,14 @@ type Room struct {
 
 // NewRoom creates and returns a new Room instance with the specified ID and an onEmpty callback.
 // The Room is initialized with empty participant, waiting room, hands raised, hosts, and screenshares maps.
-// The onEmptyCallback is called when the room becomes empty preventing a memory leak!
+// The onEmptyCallback is called when the room becomes empty, preventing a memory leak.
 //
 // Parameters:
-//   id - the unique identifier for the room.
-//   onEmptyCallback - a function to be called when the room becomes empty.
+//   - id: the unique identifier for the room.
+//   - onEmptyCallback: a function to be called when the room becomes empty.
 //
 // Returns:
-//   A pointer to the newly created Room.
+//   - A pointer to the newly created Room.
 func NewRoom(id string, onEmptyCallback func(string)) *Room {
 	return &Room{
 		ID:           id,
@@ -47,7 +47,7 @@ func NewRoom(id string, onEmptyCallback func(string)) *Room {
 
 // handleClientJoined manages the logic for when a client joins the room.
 // If the room has no participants or hosts, the first client becomes the host and is admitted immediately.
-// Otherwise, the client is placed in the waiting room and hosts are notified of the waiting user.
+// Otherwise, the client is placed in the waiting room and hosts are notified.
 func (r *Room) handleClientJoined(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -68,10 +68,8 @@ func (r *Room) handleClientJoined(client *Client) {
 }
 
 // handleClientLeft manages cleanup when a client disconnects.
-// handleClientLeft removes the specified client from all room-related states,
-// including participants, waiting room, hands raised, screenshares, and hosts.
-// It logs the disconnection event. If the client was a participant and the room
-// becomes empty as a result, it triggers the onEmpty callback in a separate goroutine.
+// It removes the client from all room-related states.
+// If the client was the last participant, it triggers the onEmpty callback to clean up the room itself.
 // Otherwise, it broadcasts the updated room state to remaining clients.
 func (r *Room) handleClientLeft(client *Client) {
 	r.mu.Lock()
@@ -89,7 +87,6 @@ func (r *Room) handleClientLeft(client *Client) {
 	slog.Info("Client disconnected and removed from room", "room", r.ID, "userID", client.UserID)
 
 	if wasParticipant {
-		// If the room is empty of participants, trigger the callback.
 		if len(r.participants) == 0 {
 			if r.onEmpty != nil {
 				go r.onEmpty(r.ID) // Run in a goroutine to avoid potential deadlocks
@@ -98,7 +95,6 @@ func (r *Room) handleClientLeft(client *Client) {
 			r.broadcastRoomState_unlocked()
 		}
 	}
-	
 }
 
 // handleMessage is the central router for all incoming messages from clients.
@@ -108,7 +104,6 @@ func (r *Room) handleClientLeft(client *Client) {
 // based on its type. Supported message types include chat, raise hand, and admit user.
 // Unknown message types are logged as warnings.
 func (r *Room) handleMessage(client *Client, msg Message) {
-	// Acquire lock once at the top level. This prevents deadlocks and races.
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -226,20 +221,23 @@ func (r *Room) broadcastToParticipants_unlocked(msgType MessageType, payload any
 // broadcastRoomState_unlocked constructs the current state of the room, including the list of participants and those with raised hands,
 // and broadcasts this state to all participants in the room. This method assumes the caller holds the necessary locks for thread safety.
 func (r *Room) broadcastRoomState_unlocked() {
-	participants := make(map[string]string)
+	participantsList := make([]ParticipantInfo, 0, len(r.participants))
 	for p := range r.participants {
-		participants[p.UserID] = p.UserID
+		participantsList = append(participantsList, ParticipantInfo{
+			UserID:      p.UserID,
+			DisplayName: p.DisplayName,
+		})
 	}
 
-	handsRaised := make([]string, 0, len(r.handsRaised))
+	handsRaisedList := make([]string, 0, len(r.handsRaised))
 	for c := range r.handsRaised {
-		handsRaised = append(handsRaised, c.UserID)
+		handsRaisedList = append(handsRaisedList, c.UserID)
 	}
 
 	payload := RoomStatePayload{
 		RoomID:       r.ID,
-		Participants: participants,
-		HandsRaised:  handsRaised,
+		Participants: participantsList, // Assign the slice
+		HandsRaised:  handsRaisedList,
 	}
 
 	r.broadcastToParticipants_unlocked(EventTypeRoomState, payload)
@@ -252,7 +250,7 @@ func (r *Room) broadcastRoomState_unlocked() {
 func (r *Room) notifyHostsOfWaitingUser_unlocked(waitingClient *Client) {
 	payload := AdmissionRequestPayload{
 		UserID:      waitingClient.UserID,
-		DisplayName: waitingClient.UserID, // Use a real display name here
+		DisplayName: waitingClient.DisplayName,
 	}
 	msg := Message{Type: EventTypeAdmissionRequest, Payload: payload}
 	rawMsg, err := json.Marshal(msg)

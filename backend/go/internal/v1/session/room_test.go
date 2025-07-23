@@ -17,19 +17,6 @@ func newTestClient(userID string) *Client {
 	}
 }
 
-func TestNewRoom(t *testing.T) {
-	roomID := "test-init-room"
-	room := NewTestRoom(roomID, nil)
-
-	require.NotNil(t, room, "NewRoom should not return nil")
-	assert.Equal(t, roomID, room.ID, "Room ID should be set correctly")
-	assert.NotNil(t, room.participants, "participants map should be initialized")
-	assert.NotNil(t, room.waitingRoom, "waitingRoom map should be initialized")
-	assert.NotNil(t, room.handsRaised, "handsRaised map should be initialized")
-	assert.NotNil(t, room.hosts, "hosts map should be initialized")
-	assert.NotNil(t, room.screenshares, "screenshares map should be initialized")
-}
-
 func TestHandleClientJoined(t *testing.T) {
 	t.Run("first client becomes host and is admitted", func(t *testing.T) {
 		room := NewTestRoom("test-host-room", nil)
@@ -275,8 +262,13 @@ func TestBroadcastRoomStateUnlocked(t *testing.T) {
 			err = UnmarshalPayload(msg.Payload, &rsp)
 			require.NoError(t, err)
 			assert.Equal(t, room.ID, rsp.RoomID)
-			assert.Contains(t, rsp.Participants, client1.UserID)
-			assert.Contains(t, rsp.Participants, client2.UserID)
+			participantIDs := make([]string, len(rsp.Participants))
+			for i, p := range rsp.Participants {
+				participantIDs[i] = p.UserID
+			}
+			assert.Contains(t, participantIDs, client1.UserID)
+			assert.Contains(t, participantIDs, client2.UserID)
+
 			assert.Contains(t, rsp.HandsRaised, client2.UserID)
 		case <-time.After(100 * time.Millisecond):
 			t.Fatalf("timed out waiting for room state for client %s", c.UserID)

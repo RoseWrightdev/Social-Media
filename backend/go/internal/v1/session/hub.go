@@ -89,9 +89,8 @@ func (h *Hub) ServeWs(c *gin.Context) {
 
 	upgrader := &websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
-            // Gin's CORS middleware already handles origin checks.
-            return true
-        },
+			return true // Assuming Gin's CORS middleware handles this.
+		},
 	}
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -104,15 +103,22 @@ func (h *Hub) ServeWs(c *gin.Context) {
 	roomID := c.Param("roomId")
 	room := h.getOrCreateRoom(roomID)
 
-	client := &Client{
-		conn:   conn,
-		send:   make(chan []byte, 256),
-		room:   room,
-		UserID: claims.Subject,
-		Role:   "participant",
+	// todo: **ACTION REQUIRED:** Add a custom claim for 'name' or 'nickname'
+	// to Auth0 token via an Auth0 Action.
+	displayName := claims.Subject // Fallback to subject if name is not in token
+	if claims.Name != "" {
+		displayName = claims.Name
 	}
 
-	// The room now handles the logic of what to do with the new client.
+	client := &Client{
+		conn:        conn,
+		send:        make(chan []byte, 256),
+		room:        room,
+		UserID:      claims.Subject,
+		DisplayName: displayName,
+		Role:        RoleTypeHost, // Default role, should be derived from token scopes
+	}
+
 	room.handleClientJoined(client)
 
 	// Start the client's goroutines.

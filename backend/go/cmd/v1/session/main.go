@@ -44,19 +44,24 @@ func main() {
 	screenShareHub := session.NewHub(authValidator)
 	chatHub := session.NewHub(authValidator)
 
-	// --- Set up Router ---
+	// --- Set up Server ---
 	router := gin.Default()
+	// Cors
 	config := cors.DefaultConfig()
 	allowedOrigins := session.GetAllowedOriginsFromEnv("ALLOWED_ORIGINS", []string{"http://localhost:3000"})
 	config.AllowOrigins = allowedOrigins
 	router.Use(cors.New(config))
+
+	// Error handling
+	router.Use(gin.Recovery()) 
+
+	// Routing
 	wsGroup := router.Group("/ws")
 	{
 		wsGroup.GET("/zoom/:roomId", zoomCallHub.ServeWs)
 		wsGroup.GET("/screenshare/:roomId", screenShareHub.ServeWs)
 		wsGroup.GET("/chat/:roomId", chatHub.ServeWs)
 	}
-	router.Use(gin.Recovery()) 
 
 	// Start the server.
 	slog.Info("API server starting on :8080")

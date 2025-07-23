@@ -10,44 +10,13 @@ import (
 // RoleType describes the type of client.
 type RoleType string
 
+// This enum is the single source of truth for a client's role.
 const (
 	RoleTypeWaiting     RoleType = "waiting"
 	RoleTypeParticipant RoleType = "participant"
 	RoleTypeScreenshare RoleType = "screenshare"
 	RoleTypeHost        RoleType = "host"
 )
-
-// --- Role Interfaces (for type safety and clarity) ---
-type Waiting interface {
-	GetUserID() string
-	GetRole() RoleType
-	WaitingPrivileges()
-}
-type Participant interface {
-	GetUserID() string
-	GetRole() RoleType
-}
-type Screenshare interface {
-	Participant
-	ScreensharePrivileges()
-}
-type Host interface {
-	Participant
-	HostPrivileges()
-}
-
-// --- Concrete Client Types ---
-type HostClient struct{ Client }
-
-func (h *HostClient) HostPrivileges() {}
-
-type ScreenshareClient struct{ Client }
-
-func (s *ScreenshareClient) ScreensharePrivileges() {}
-
-type WaitingClient struct{ Client }
-
-func (w *WaitingClient) WaitingPrivileges() {}
 
 // --- Connection and Room Interfaces ---
 
@@ -66,12 +35,14 @@ type Roomer interface {
 }
 
 // Client represents a single connected user.
+// The combination of UserID, DisplayName, and Role is sufficient for all permission checks.
 type Client struct {
-	conn   wsConnection
-	send   chan []byte
-	room   Roomer
-	UserID string
-	Role   RoleType
+	conn        wsConnection
+	send        chan []byte
+	room        Roomer
+	UserID      string
+	DisplayName string
+	Role        RoleType
 }
 
 // GetUserID returns the user ID associated with the client.
