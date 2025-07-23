@@ -3,9 +3,11 @@ package session
 import (
 	"log/slog"
 	"net/http"
+	"net/url"
 	"sync"
 
 	"Social-Media/backend/go/internal/v1/auth"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -87,9 +89,30 @@ func (h *Hub) ServeWs(c *gin.Context) {
 		return
 	}
 
-	upgrader := &websocket.Upgrader{
+	allowedOrigins := GetAllowedOriginsFromEnv("ALLOWED_ORIGINS", []string{"http://localhost:3000"})
+	upgrader := websocket.Upgrader{
+		// This is the secure way to check the origin.
 		CheckOrigin: func(r *http.Request) bool {
-			return true // Assuming Gin's CORS middleware handles this.
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true // Allow non-browser clients (e.g., for testing)
+			}
+			originURL, err := url.Parse(origin)
+			if err != nil {
+				return false
+			}
+
+			for _, allowed := range allowedOrigins {
+				allowedURL, err := url.Parse(allowed)
+				if err != nil {
+					continue
+				}
+				// Check if the scheme and host match.
+				if originURL.Scheme == allowedURL.Scheme && originURL.Host == allowedURL.Host {
+					return true
+				}
+			}
+			return false
 		},
 	}
 
