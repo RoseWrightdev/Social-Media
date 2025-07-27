@@ -46,7 +46,7 @@ type Room struct {
 
 	// --- Client State management ---
 
-	handRaised    map[UserIDType]*Client // Participants with their hand raised
+	raisingHand    map[UserIDType]*Client // Participants with their hand raised
 	sharingScreen map[UserIDType]*Client // Participants currently sharing their screen
 	unmuted       map[UserIDType]*Client // Participants currently unmuted
 	cameraOn      map[UserIDType]*Client // Perticipants currented with their camera on
@@ -114,7 +114,7 @@ func NewRoom(id RoomIDType, onEmptyCallback func(RoomIDType)) *Room {
 		clientDrawOrderQueue:  list.New(),
 		handDrawOrderQueue:    list.New(),
 
-		handRaised:    make(map[UserIDType]*Client),
+		raisingHand:   make(map[UserIDType]*Client),
 		sharingScreen: make(map[UserIDType]*Client),
 		unmuted:       make(map[UserIDType]*Client),
 		cameraOn:      make(map[UserIDType]*Client),
@@ -214,7 +214,6 @@ func (r *Room) broadcast(MsgType MessageType, payload any, roles set.Set[RoleTyp
 	}
 
 	if len(roles) == 0 {
-		// todo: do this in one pass rather than copying to "allClients"
 		// Send to all roles
 		for _, m := range []map[UserIDType]*Client{r.hosts, r.sharingScreen, r.participants, r.waiting} {
 			for _, p := range m {
