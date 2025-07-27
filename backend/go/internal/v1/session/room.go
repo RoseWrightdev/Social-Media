@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"sync"
+
+	"k8s.io/utils/set"
 )
 
 // todo: add file level docs
@@ -128,15 +130,15 @@ func (r *Room) handleMessage(client *Client, msg Message) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	_, isHost          := r.hosts[client.UserID]
+	_, isHost := r.hosts[client.UserID]
 	_, isSharingScreen := r.sharingScreen[client.UserID]
-	_, isParticipant   := r.participants[client.UserID]
-	_, iswaiting       := r.waiting[client.UserID]
+	_, isParticipant := r.participants[client.UserID]
+	_, iswaiting := r.waiting[client.UserID]
 
 	switch msg.Type {
 	case MessageType(ClientEventChat):
 		if isParticipant || isHost {
-		  r.handleChatMessage_unlocked(client, msg.Payload)
+			r.handleChatMessage_unlocked(client, msg.Payload)
 		}
 
 	case MessageType(ClientEventHand):
@@ -203,7 +205,7 @@ func (r *Room) handleMessage(client *Client, msg Message) {
 //
 //	r.broadcast(MessageTypeChat, chatPayload) // Broadcast to all clients
 //	r.broadcast(MessageTypeUpdate, updatePayload, RoleTypeHost, RoleTypeParticipant) // Broadcast to hosts and participants
-func (r *Room) broadcast(MsgType MessageType, payload any, roles ...RoleType) {
+func (r *Room) broadcast(MsgType MessageType, payload any, roles set.Set[RoleType]) {
 	msg := Message{Type: MsgType, Payload: payload}
 	rawMsg, err := json.Marshal(msg)
 	if err != nil {
@@ -214,21 +216,18 @@ func (r *Room) broadcast(MsgType MessageType, payload any, roles ...RoleType) {
 	if len(roles) == 0 {
 		// todo: do this in one pass rather than copying to "allClients"
 		// Send to all roles
-		allClients := make(map[UserIDType]*Client)
 		for _, m := range []map[UserIDType]*Client{r.hosts, r.sharingScreen, r.participants, r.waiting} {
-			for id, c := range m {
-				allClients[id] = c
+			for _, p := range m {
+				select {
+				case p.send <- rawMsg:
+				default:
+					// Prevent a slow client from blocking the whole broadcast.
+				}
 			}
 		}
-		for _, p := range allClients {
-			select {
-			case p.send <- rawMsg:
-			default:
-				// Prevent a slow client from blocking the whole broadcast.
-			}
-		}
+
 	} else {
-		for _, role := range roles {
+		for role := range roles {
 			var clients []*Client
 			switch role {
 			case RoleTypeHost:

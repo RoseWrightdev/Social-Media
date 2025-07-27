@@ -23,7 +23,7 @@ func (r *Room) handleChatMessage_unlocked(sender *Client, payload any) {
 	p.Timestamp = time.Now().Unix()
 
 	r.addChatMessage_unlocked(p)
-	r.broadcast(MessageType(ClientEventChat), p, HasParticipantPermission()...)
+	r.broadcast(MessageType(ClientEventChat), p, HasParticipantPermission())
 }
 
 // todo: umimpl
@@ -58,8 +58,9 @@ func (r *Room) handleRequestWaiting_unlocked(client *Client, payload any) {
 		slog.Error("Failed to convert payload to RequestAdmissionPayload")
 	}
 	slog.Info("Admission requested to the waiting room", "room", r.ID, "userID", client.UserID)
-	r.broadcast(MessageType(ClientEventAdmissionRequest), p, HasHostPermission()...)
+	r.broadcast(MessageType(ClientEventAdmissionRequest), p, HasHostPermission())
 }
+
 // todo: umimpl
 //
 // handleAcceptWaiting_unlocked processes a request to Accept a user from the waiting room.
@@ -103,7 +104,7 @@ func (r *Room) handleRequestScreenshare_unlocked(client *Client, payload any) {
 		return
 	}
 	slog.Info("Screenshare requested", "room", r.ID, "userID", client.UserID)
-	r.broadcast(MessageType(ClientEventRequestScreenshare), p, HasHostPermission()...)
+	r.broadcast(MessageType(ClientEventRequestScreenshare), p, HasHostPermission())
 }
 
 // todo: unimpl
