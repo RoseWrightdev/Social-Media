@@ -1,8 +1,5 @@
 package session
 
-// todo: rewrite test suite
-// todo: write file level comment
-
 import (
 	"net/http"
 	"net/http/httptest"
