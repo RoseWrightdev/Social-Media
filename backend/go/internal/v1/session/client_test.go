@@ -11,9 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// todo: write file level comments
-// todo: check tests after refactor!
-
 // MockConn is a mock implementation of our wsConnection interface.
 type MockConn struct {
 	ReadMessages    chan []byte
@@ -32,7 +29,11 @@ func newMockConn() *MockConn {
 	}
 }
 
-// todo: add docs
+// ReadMessage reads the next message from the mock connection.
+// It returns the message type, the message data, and an error, if any.
+// If a predefined ReadError is set, it returns that error.
+// If the ReadMessages channel is closed, it returns a websocket.CloseError with CloseNormalClosure code.
+// Otherwise, it returns the next message from the ReadMessages channel as a TextMessage.
 func (m *MockConn) ReadMessage() (int, []byte, error) {
 	if m.ReadError != nil {
 		return 0, nil, m.ReadError
@@ -45,7 +46,9 @@ func (m *MockConn) ReadMessage() (int, []byte, error) {
 }
 
 
-// todo: add docs
+// WriteMessage simulates writing a message to a connection. It sends the provided data
+// to the WrittenMessages channel unless WriteError is set, in which case it returns the error.
+// This method is typically used in tests to mock WebSocket or similar message-based connections.
 func (m *MockConn) WriteMessage(messageType int, data []byte) error {
 	if m.WriteError != nil {
 		return m.WriteError
@@ -54,7 +57,8 @@ func (m *MockConn) WriteMessage(messageType int, data []byte) error {
 	return nil
 }
 
-// todo: add docs
+// Close signals that the connection is being closed by sending a value to the CloseCalled channel.
+// If the channel is full, the signal is dropped. Always returns nil to satisfy the io.Closer interface.
 func (m *MockConn) Close() error {
 	select {
 	case m.CloseCalled <- true:
@@ -70,7 +74,9 @@ type MockRoom struct {
 	clientLeftCalled chan *Client
 }
 
-// todo: add docs
+// newMockRoom creates and returns a new instance of MockRoom with initialized channels
+// for handled messages and client left notifications. This is typically used for testing
+// purposes to simulate room behavior in unit tests.
 func newMockRoom() *MockRoom {
 	return &MockRoom{
 		handledMessage:   make(chan Message, 5),
@@ -78,19 +84,14 @@ func newMockRoom() *MockRoom {
 	}
 }
 
-// todo: add docs
+// handleMessage processes an incoming Message from a Client and sends it to the handledMessage channel.
+// It acquires a lock to ensure thread-safe access to the handledMessage channel.
 func (m *MockRoom) handleMessage(c *Client, msg Message) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.handledMessage <- msg
 }
 
-// todo: add docs
-func (m *MockRoom) handleClientLeft(c *Client) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.clientLeftCalled <- c
-}
 
 // handleClientDisconnect is added to satisfy the Roomer interface.
 func (m *MockRoom) handleClientDisconnect(c *Client) {
