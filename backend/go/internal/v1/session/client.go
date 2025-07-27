@@ -1,21 +1,11 @@
 package session
 
 import (
+	"container/list"
 	"encoding/json"
 	"log/slog"
 
 	"github.com/gorilla/websocket"
-)
-
-// RoleType describes the type of client.
-type RoleType string
-
-// This enum is the single source of truth for a client's role.
-const (
-	RoleTypeWaiting     RoleType = "waiting"
-	RoleTypeParticipant RoleType = "participant"
-	RoleTypeScreenshare RoleType = "screenshare"
-	RoleTypeHost        RoleType = "host"
 )
 
 // --- Connection and Room Interfaces ---
@@ -31,7 +21,7 @@ type wsConnection interface {
 // This allows us to use a real Room in production and a MockRoom in tests.
 type Roomer interface {
 	handleMessage(c *Client, msg Message)
-	handleClientLeft(c *Client)
+	handleClientDisconnect(c *Client)
 }
 
 // Client represents a single connected user.
@@ -40,19 +30,10 @@ type Client struct {
 	conn        wsConnection
 	send        chan []byte
 	room        Roomer
-	UserID      string
-	DisplayName string
+	UserID      UserIDType
+	DisplayName DisplayNameType
 	Role        RoleType
-}
-
-// GetUserID returns the user ID associated with the client.
-func (c *Client) GetUserID() string {
-	return c.UserID
-}
-
-// GetRole returns the role type associated with the client.
-func (c *Client) GetRole() RoleType {
-	return c.Role
+	drawOrderElement *list.Element
 }
 
 // readPump continuously reads messages from the client's WebSocket connection.
@@ -61,7 +42,7 @@ func (c *Client) GetRole() RoleType {
 // Ran as a goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.room.handleClientLeft(c)
+		c.room.handleClientDisconnect(c)
 		c.conn.Close()
 	}()
 

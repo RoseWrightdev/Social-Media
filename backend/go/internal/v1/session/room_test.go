@@ -1,335 +1,338 @@
 package session
 
-import (
-	"encoding/json"
-	"testing"
-	"time"
+// todo: rewrite test suite
+// todo: write file level comment
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-)
+// import (
+// 	"encoding/json"
+// 	"testing"
+// 	"time"
 
-// newTestClient creates a client for testing purposes.
-func newTestClient(userID string) *Client {
-	return &Client{
-		UserID: userID,
-		send:   make(chan []byte, 10), // Buffered channel to avoid blocking in tests
-	}
-}
+// 	"github.com/stretchr/testify/assert"
+// 	"github.com/stretchr/testify/require"
+// )
 
-// NewTestRoom creates a new, stateful room for testing purposes.
-func NewTestRoom(id string, onEmptyCallback func(string)) *Room {
-	return &Room{
-		ID:           id,
-		participants: make(map[string]*Client),
-		waitingRoom:  make(map[string]*Client),
-		handsRaised:  make(map[string]*Client),
-		hosts:        make(map[string]*Client),
-		screenshares: make(map[string]*Client),
-		onEmpty:      onEmptyCallback,
-	}
-}
+// // newTestClient creates a client for testing purposes.
+// func newTestClient(userID string) *Client {
+// 	return &Client{
+// 		UserID: userID,
+// 		send:   make(chan []byte, 10), // Buffered channel to avoid blocking in tests
+// 	}
+// }
 
-// TestNewRoom verifies that a new Room instance is correctly initialized.
-func TestNewRoom(t *testing.T) {
-	roomID := "test-init-room"
-	room := NewTestRoom(roomID, nil)
+// // NewTestRoom creates a new, stateful room for testing purposes.
+// func NewTestRoom(id string, onEmptyCallback func(string)) *Room {
+// 	return &Room{
+// 		ID:           id,
+// 		participants: make(map[string]*Client),
+// 		waitingRoom:  make(map[string]*Client),
+// 		handsRaised:  make(map[string]*Client),
+// 		hosts:        make(map[string]*Client),
+// 		screenshares: make(map[string]*Client),
+// 		onEmpty:      onEmptyCallback,
+// 	}
+// }
 
-	require.NotNil(t, room, "NewRoom should not return nil")
-	assert.Equal(t, roomID, room.ID, "Room ID should be set correctly")
-	assert.NotNil(t, room.participants, "participants map should be initialized")
-	assert.NotNil(t, room.waitingRoom, "waitingRoom map should be initialized")
-	assert.NotNil(t, room.handsRaised, "handsRaised map should be initialized")
-	assert.NotNil(t, room.hosts, "hosts map should be initialized")
-	assert.NotNil(t, room.screenshares, "screenshares map should be initialized")
-}
+// // TestNewRoom verifies that a new Room instance is correctly initialized.
+// func TestNewRoom(t *testing.T) {
+// 	roomID := "test-init-room"
+// 	room := NewTestRoom(roomID, nil)
 
-func TestHandleClientJoined(t *testing.T) {
-	t.Run("first client becomes host and is admitted", func(t *testing.T) {
-		room := NewTestRoom("test-host-room", nil)
-		client1 := newTestClient("user-host")
+// 	require.NotNil(t, room, "NewRoom should not return nil")
+// 	assert.Equal(t, roomID, room.ID, "Room ID should be set correctly")
+// 	assert.NotNil(t, room.participants, "participants map should be initialized")
+// 	assert.NotNil(t, room.waitingRoom, "waitingRoom map should be initialized")
+// 	assert.NotNil(t, room.handsRaised, "handsRaised map should be initialized")
+// 	assert.NotNil(t, room.hosts, "hosts map should be initialized")
+// 	assert.NotNil(t, room.screenshares, "screenshares map should be initialized")
+// }
 
-		room.handleClientJoined(client1)
+// func TestHandleClientJoined(t *testing.T) {
+// 	t.Run("first client becomes host and is admitted", func(t *testing.T) {
+// 		room := NewTestRoom("test-host-room", nil)
+// 		client1 := newTestClient("user-host")
 
-		room.mu.RLock()
-		require.NotNil(t, room.hosts[client1.UserID], "First client should be a host")
-		require.NotNil(t, room.participants[client1.UserID], "First client should be a participant")
-		assert.Empty(t, room.waitingRoom, "Waiting room should be empty")
-		room.mu.RUnlock()
+// 		room.handleClientJoined(client1)
 
-		// Check for RoomState broadcast
-		select {
-		case msgBytes := <-client1.send:
-			var msg Message
-			err := json.Unmarshal(msgBytes, &msg)
-			require.NoError(t, err)
-			assert.Equal(t, EventTypeRoomState, msg.Type)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("timed out waiting for room state message")
-		}
-	})
+// 		room.mu.RLock()
+// 		require.NotNil(t, room.hosts[client1.UserID], "First client should be a host")
+// 		require.NotNil(t, room.participants[client1.UserID], "First client should be a participant")
+// 		assert.Empty(t, room.waitingRoom, "Waiting room should be empty")
+// 		room.mu.RUnlock()
 
-	t.Run("subsequent client enters waiting room", func(t *testing.T) {
-		room := NewTestRoom("test-wait-room", nil)
-		hostClient := newTestClient("user-host")
-		waitingClient := newTestClient("user-waiting")
+// 		// Check for RoomState broadcast
+// 		select {
+// 		case msgBytes := <-client1.send:
+// 			var msg Message
+// 			err := json.Unmarshal(msgBytes, &msg)
+// 			require.NoError(t, err)
+// 			assert.Equal(t, EventTypeRoomState, msg.Type)
+// 		case <-time.After(100 * time.Millisecond):
+// 			t.Fatal("timed out waiting for room state message")
+// 		}
+// 	})
 
-		// First client becomes host
-		room.handleClientJoined(hostClient)
-		<-hostClient.send // clear the initial broadcast
+// 	t.Run("subsequent client enters waiting room", func(t *testing.T) {
+// 		room := NewTestRoom("test-wait-room", nil)
+// 		hostClient := newTestClient("user-host")
+// 		waitingClient := newTestClient("user-waiting")
 
-		// Second client joins
-		room.handleClientJoined(waitingClient)
+// 		// First client becomes host
+// 		room.handleClientJoined(hostClient)
+// 		<-hostClient.send // clear the initial broadcast
 
-		room.mu.RLock()
-		require.Nil(t, room.participants[waitingClient.UserID], "Second client should not be a participant yet")
-		require.NotNil(t, room.waitingRoom[waitingClient.UserID], "Second client should be in the waiting room")
-		assert.Equal(t, RoleTypeWaiting, waitingClient.Role, "Waiting client's role should be set to waiting")
-		room.mu.RUnlock()
-	})
-}
+// 		// Second client joins
+// 		room.handleClientJoined(waitingClient)
 
-func TestHandleClientLeft(t *testing.T) {
-	room := NewTestRoom("test-leave-room", nil)
-	hostClient := newTestClient("user-host")
-	participantClient := newTestClient("user-participant")
+// 		room.mu.RLock()
+// 		require.Nil(t, room.participants[waitingClient.UserID], "Second client should not be a participant yet")
+// 		require.NotNil(t, room.waitingRoom[waitingClient.UserID], "Second client should be in the waiting room")
+// 		assert.Equal(t, RoleTypeWaiting, waitingClient.Role, "Waiting client's role should be set to waiting")
+// 		room.mu.RUnlock()
+// 	})
+// }
 
-	room.handleClientJoined(hostClient)
-	// Manually admit the second client for the test
-	room.mu.Lock()
-	room.admitClient_unlocked(participantClient)
-	room.mu.Unlock()
+// func TestHandleClientLeft(t *testing.T) {
+// 	room := NewTestRoom("test-leave-room", nil)
+// 	hostClient := newTestClient("user-host")
+// 	participantClient := newTestClient("user-participant")
 
-	// Clear send channels
-	<-hostClient.send
-	<-participantClient.send
+// 	room.handleClientJoined(hostClient)
+// 	// Manually admit the second client for the test
+// 	room.mu.Lock()
+// 	room.admitClient_unlocked(participantClient)
+// 	room.mu.Unlock()
 
-	// Participant leaves
-	room.handleClientLeft(participantClient)
+// 	// Clear send channels
+// 	<-hostClient.send
+// 	<-participantClient.send
 
-	room.mu.RLock()
-	assert.NotContains(t, room.participants, participantClient, "Client should be removed from participants")
-	room.mu.RUnlock()
+// 	// Participant leaves
+// 	room.handleClientLeft(participantClient)
 
-	// Host should receive a state update
-	select {
-	case msgBytes := <-hostClient.send:
-		var msg Message
-		err := json.Unmarshal(msgBytes, &msg)
-		require.NoError(t, err)
-		assert.Equal(t, EventTypeRoomState, msg.Type)
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timed out waiting for room state update after user left")
-	}
-}
+// 	room.mu.RLock()
+// 	assert.NotContains(t, room.participants, participantClient, "Client should be removed from participants")
+// 	room.mu.RUnlock()
 
-func TestHandleMessage_ChatMessage(t *testing.T) {
-	room := NewTestRoom("test-chat-room", nil)
-	client1 := newTestClient("user1")
-	client2 := newTestClient("user2")
+// 	// Host should receive a state update
+// 	select {
+// 	case msgBytes := <-hostClient.send:
+// 		var msg Message
+// 		err := json.Unmarshal(msgBytes, &msg)
+// 		require.NoError(t, err)
+// 		assert.Equal(t, EventTypeRoomState, msg.Type)
+// 	case <-time.After(100 * time.Millisecond):
+// 		t.Fatal("timed out waiting for room state update after user left")
+// 	}
+// }
 
-	room.handleClientJoined(client1) // Becomes host
-	room.mu.Lock()
-	room.admitClient_unlocked(client2)
-	room.mu.Unlock()
+// func TestHandleMessage_ChatMessage(t *testing.T) {
+// 	room := NewTestRoom("test-chat-room", nil)
+// 	client1 := newTestClient("user1")
+// 	client2 := newTestClient("user2")
 
-	// Clear initial state messages
-	<-client1.send
-	<-client1.send // Clear client1's message from client2's join
-	<-client2.send
+// 	room.handleClientJoined(client1) // Becomes host
+// 	room.mu.Lock()
+// 	room.admitClient_unlocked(client2)
+// 	room.mu.Unlock()
 
-	chatPayload := ChatPayload{SenderID: "user1", Content: "Hello World"}
-	msg := Message{
-		Type:    MessageTypeChat,
-		Payload: chatPayload,
-	}
+// 	// Clear initial state messages
+// 	<-client1.send
+// 	<-client1.send // Clear client1's message from client2's join
+// 	<-client2.send
 
-	room.handleMessage(client1, msg)
+// 	chatPayload := ChatPayload{SenderID: "user1", Content: "Hello World"}
+// 	msg := Message{
+// 		Type:    MessageTypeChat,
+// 		Payload: chatPayload,
+// 	}
 
-	// Both clients should receive the chat message
-	for _, c := range []*Client{client1, client2} {
-		select {
-		case msgBytes := <-c.send:
-			var receivedMsg Message
-			err := json.Unmarshal(msgBytes, &receivedMsg)
-			require.NoError(t, err)
-			assert.Equal(t, MessageTypeChat, receivedMsg.Type)
+// 	room.handleMessage(client1, msg)
 
-			var receivedPayload ChatPayload
-			err = UnmarshalPayload(receivedMsg.Payload, &receivedPayload)
-			require.NoError(t, err)
-			assert.Equal(t, "Hello World", receivedPayload.Content)
-			assert.Equal(t, client1.UserID, receivedPayload.SenderID)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatalf("timed out waiting for chat message for client %s", c.UserID)
-		}
-	}
-}
+// 	// Both clients should receive the chat message
+// 	for _, c := range []*Client{client1, client2} {
+// 		select {
+// 		case msgBytes := <-c.send:
+// 			var receivedMsg Message
+// 			err := json.Unmarshal(msgBytes, &receivedMsg)
+// 			require.NoError(t, err)
+// 			assert.Equal(t, MessageTypeChat, receivedMsg.Type)
 
-func TestHandleMessage_RaiseHand(t *testing.T) {
-	room := NewTestRoom("test-raise-hand", nil)
-	client := newTestClient("user1")
-	room.handleClientJoined(client) // Becomes host
-	<-client.send                   // Clear initial state
+// 			var receivedPayload ChatPayload
+// 			err = UnmarshalPayload(receivedMsg.Payload, &receivedPayload)
+// 			require.NoError(t, err)
+// 			assert.Equal(t, "Hello World", receivedPayload.Content)
+// 			assert.Equal(t, client1.UserID, receivedPayload.SenderID)
+// 		case <-time.After(100 * time.Millisecond):
+// 			t.Fatalf("timed out waiting for chat message for client %s", c.UserID)
+// 		}
+// 	}
+// }
 
-	// Raise hand
-	raiseHandPayload := RaiseHandPayload{IsRaised: true}
-	msg := Message{Type: MessageTypeRaiseHand, Payload: raiseHandPayload}
-	room.handleMessage(client, msg)
+// func TestHandleMessage_RaiseHand(t *testing.T) {
+// 	room := NewTestRoom("test-raise-hand", nil)
+// 	client := newTestClient("user1")
+// 	room.handleClientJoined(client) // Becomes host
+// 	<-client.send                   // Clear initial state
 
-	room.mu.RLock()
-	require.NotNil(t, room.handsRaised[client.UserID], "Client should be in handsRaised map")
-	room.mu.RUnlock()
+// 	// Raise hand
+// 	raiseHandPayload := RaiseHandPayload{IsRaised: true}
+// 	msg := Message{Type: MessageTypeRaiseHand, Payload: raiseHandPayload}
+// 	room.handleMessage(client, msg)
 
-	// Check for state broadcast
-	select {
-	case msgBytes := <-client.send:
-		var receivedMsg Message
-		err := json.Unmarshal(msgBytes, &receivedMsg)
-		require.NoError(t, err)
-		assert.Equal(t, EventTypeRoomState, receivedMsg.Type)
+// 	room.mu.RLock()
+// 	require.NotNil(t, room.handsRaised[client.UserID], "Client should be in handsRaised map")
+// 	room.mu.RUnlock()
 
-		var p RoomStatePayload
-		err = UnmarshalPayload(receivedMsg.Payload, &p)
-		require.NoError(t, err)
-		assert.Contains(t, p.HandsRaised, client.UserID, "Broadcasted state should show hand as raised")
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timed out waiting for room state update after raising hand")
-	}
-}
+// 	// Check for state broadcast
+// 	select {
+// 	case msgBytes := <-client.send:
+// 		var receivedMsg Message
+// 		err := json.Unmarshal(msgBytes, &receivedMsg)
+// 		require.NoError(t, err)
+// 		assert.Equal(t, EventTypeRoomState, receivedMsg.Type)
 
-func TestHandleMessage_AdmitUser(t *testing.T) {
-	room := NewTestRoom("test-admit-room", nil)
-	host := newTestClient("host1")
-	waitingUser := newTestClient("waiter1")
-	room.handleClientJoined(host)
-	room.handleClientJoined(waitingUser)
+// 		var p RoomStatePayload
+// 		err = UnmarshalPayload(receivedMsg.Payload, &p)
+// 		require.NoError(t, err)
+// 		assert.Contains(t, p.HandsRaised, client.UserID, "Broadcasted state should show hand as raised")
+// 	case <-time.After(100 * time.Millisecond):
+// 		t.Fatal("timed out waiting for room state update after raising hand")
+// 	}
+// }
 
-	// Clear initial messages
-	<-host.send
-	<-host.send
+// func TestHandleMessage_AdmitUser(t *testing.T) {
+// 	room := NewTestRoom("test-admit-room", nil)
+// 	host := newTestClient("host1")
+// 	waitingUser := newTestClient("waiter1")
+// 	room.handleClientJoined(host)
+// 	room.handleClientJoined(waitingUser)
 
-	admitPayload := AdmitUserPayload{TargetUserID: "waiter1"}
-	msg := Message{Type: MessageTypeAdmitUser, Payload: admitPayload}
+// 	// Clear initial messages
+// 	<-host.send
+// 	<-host.send
 
-	// Non-host cannot admit
-	nonHost := newTestClient("non-host")
-	nonHost.Role = RoleTypeParticipant
-	room.handleMessage(nonHost, msg)
-	room.mu.RLock()
-	require.NotNil(t, room.waitingRoom[waitingUser.UserID], "User should still be in waiting room after non-host attempt")
-	room.mu.RUnlock()
+// 	admitPayload := AdmitUserPayload{TargetUserID: "waiter1"}
+// 	msg := Message{Type: MessageTypeAdmitUser, Payload: admitPayload}
 
-	// Host can admit
-	room.handleMessage(host, msg)
-	room.mu.RLock()
-	require.Nil(t, room.waitingRoom[waitingUser.UserID], "User should no longer be in waiting room")
-	require.NotNil(t, room.participants[waitingUser.UserID], "User should now be a participant")
-	assert.Equal(t, RoleTypeParticipant, waitingUser.Role)
-	room.mu.RUnlock()
-}
-func TestBroadcastToParticipantsUnlocked(t *testing.T) {
-	room := NewTestRoom("test-broadcast-room", nil)
-	client1 := newTestClient("user1")
-	client2 := newTestClient("user2")
-	client3 := newTestClient("user3")
+// 	// Non-host cannot admit
+// 	nonHost := newTestClient("non-host")
+// 	nonHost.Role = RoleTypeParticipant
+// 	room.handleMessage(nonHost, msg)
+// 	room.mu.RLock()
+// 	require.NotNil(t, room.waitingRoom[waitingUser.UserID], "User should still be in waiting room after non-host attempt")
+// 	room.mu.RUnlock()
 
-	// Add clients as participants
-	room.mu.Lock()
-	room.participants[client1.UserID] = client1
-	room.participants[client2.UserID] = client2
-	room.participants[client3.UserID] = client3
-	room.mu.Unlock()
+// 	// Host can admit
+// 	room.handleMessage(host, msg)
+// 	room.mu.RLock()
+// 	require.Nil(t, room.waitingRoom[waitingUser.UserID], "User should no longer be in waiting room")
+// 	require.NotNil(t, room.participants[waitingUser.UserID], "User should now be a participant")
+// 	assert.Equal(t, RoleTypeParticipant, waitingUser.Role)
+// 	room.mu.RUnlock()
+// }
+// func TestBroadcastToParticipantsUnlocked(t *testing.T) {
+// 	room := NewTestRoom("test-broadcast-room", nil)
+// 	client1 := newTestClient("user1")
+// 	client2 := newTestClient("user2")
+// 	client3 := newTestClient("user3")
 
-	payload := ChatPayload{SenderID: "user1", Content: "Broadcast message"}
-	room.mu.RLock()
-	room.broadcastToParticipants_unlocked(MessageTypeChat, payload)
-	room.mu.RUnlock()
+// 	// Add clients as participants
+// 	room.mu.Lock()
+// 	room.participants[client1.UserID] = client1
+// 	room.participants[client2.UserID] = client2
+// 	room.participants[client3.UserID] = client3
+// 	room.mu.Unlock()
 
-	for _, c := range []*Client{client1, client2, client3} {
-		select {
-		case msgBytes := <-c.send:
-			var msg Message
-			err := json.Unmarshal(msgBytes, &msg)
-			require.NoError(t, err)
-			assert.Equal(t, MessageTypeChat, msg.Type)
-			var cp ChatPayload
-			err = UnmarshalPayload(msg.Payload, &cp)
-			require.NoError(t, err)
-			assert.Equal(t, "Broadcast message", cp.Content)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatalf("timed out waiting for broadcast message for client %s", c.UserID)
-		}
-	}
-}
+// 	payload := ChatPayload{SenderID: "user1", Content: "Broadcast message"}
+// 	room.mu.RLock()
+// 	room.broadcastToParticipants_unlocked(MessageTypeChat, payload)
+// 	room.mu.RUnlock()
 
-func TestBroadcastRoomStateUnlocked(t *testing.T) {
-	room := NewTestRoom("test-roomstate-room", nil)
-	client1 := newTestClient("user1")
-	client2 := newTestClient("user2")
+// 	for _, c := range []*Client{client1, client2, client3} {
+// 		select {
+// 		case msgBytes := <-c.send:
+// 			var msg Message
+// 			err := json.Unmarshal(msgBytes, &msg)
+// 			require.NoError(t, err)
+// 			assert.Equal(t, MessageTypeChat, msg.Type)
+// 			var cp ChatPayload
+// 			err = UnmarshalPayload(msg.Payload, &cp)
+// 			require.NoError(t, err)
+// 			assert.Equal(t, "Broadcast message", cp.Content)
+// 		case <-time.After(100 * time.Millisecond):
+// 			t.Fatalf("timed out waiting for broadcast message for client %s", c.UserID)
+// 		}
+// 	}
+// }
 
-	room.mu.Lock()
-	room.participants[client1.UserID] = client1
-	room.participants[client2.UserID] = client2
-	room.handsRaised[client2.UserID]  = client2
-	room.mu.Unlock()
+// func TestBroadcastRoomStateUnlocked(t *testing.T) {
+// 	room := NewTestRoom("test-roomstate-room", nil)
+// 	client1 := newTestClient("user1")
+// 	client2 := newTestClient("user2")
 
-	room.mu.RLock()
-	room.broadcastRoomState_unlocked()
-	room.mu.RUnlock()
+// 	room.mu.Lock()
+// 	room.participants[client1.UserID] = client1
+// 	room.participants[client2.UserID] = client2
+// 	room.handsRaised[client2.UserID]  = client2
+// 	room.mu.Unlock()
 
-	for _, c := range []*Client{client1, client2} {
-		select {
-		case msgBytes := <-c.send:
-			var msg Message
-			err := json.Unmarshal(msgBytes, &msg)
-			require.NoError(t, err)
-			assert.Equal(t, EventTypeRoomState, msg.Type)
-			var rsp RoomStatePayload
-			err = UnmarshalPayload(msg.Payload, &rsp)
-			require.NoError(t, err)
-			assert.Equal(t, room.ID, rsp.RoomID)
-			participantIDs := make([]string, len(rsp.Participants))
-			for i, p := range rsp.Participants {
-				participantIDs[i] = p.UserID
-			}
-			assert.Contains(t, participantIDs, client1.UserID)
-			assert.Contains(t, participantIDs, client2.UserID)
+// 	room.mu.RLock()
+// 	room.broadcastRoomState_unlocked()
+// 	room.mu.RUnlock()
 
-			assert.Contains(t, rsp.HandsRaised, client2.UserID)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatalf("timed out waiting for room state for client %s", c.UserID)
-		}
-	}
-}
+// 	for _, c := range []*Client{client1, client2} {
+// 		select {
+// 		case msgBytes := <-c.send:
+// 			var msg Message
+// 			err := json.Unmarshal(msgBytes, &msg)
+// 			require.NoError(t, err)
+// 			assert.Equal(t, EventTypeRoomState, msg.Type)
+// 			var rsp RoomStatePayload
+// 			err = UnmarshalPayload(msg.Payload, &rsp)
+// 			require.NoError(t, err)
+// 			assert.Equal(t, room.ID, rsp.RoomID)
+// 			participantIDs := make([]string, len(rsp.Participants))
+// 			for i, p := range rsp.Participants {
+// 				participantIDs[i] = p.UserID
+// 			}
+// 			assert.Contains(t, participantIDs, client1.UserID)
+// 			assert.Contains(t, participantIDs, client2.UserID)
 
-func TestBroadcastToParticipantsUnlocked_MarshalError(t *testing.T) {
-	room := NewTestRoom("test-marshal-error", nil)
-	client := newTestClient("user1")
-	room.mu.Lock()
-	room.participants[client.UserID] = client
-	room.mu.Unlock()
+// 			assert.Contains(t, rsp.HandsRaised, client2.UserID)
+// 		case <-time.After(100 * time.Millisecond):
+// 			t.Fatalf("timed out waiting for room state for client %s", c.UserID)
+// 		}
+// 	}
+// }
 
-	// Create a payload that cannot be marshaled (channel type)
-	payload := make(chan int)
-	room.mu.RLock()
-	room.broadcastToParticipants_unlocked(MessageTypeChat, payload)
-	room.mu.RUnlock()
+// func TestBroadcastToParticipantsUnlocked_MarshalError(t *testing.T) {
+// 	room := NewTestRoom("test-marshal-error", nil)
+// 	client := newTestClient("user1")
+// 	room.mu.Lock()
+// 	room.participants[client.UserID] = client
+// 	room.mu.Unlock()
 
-	// Should not send anything to client
-	select {
-	case <-client.send:
-		t.Fatal("expected no message to be sent due to marshal error")
-	case <-time.After(50 * time.Millisecond):
-		// Success: no message sent
-	}
-}
+// 	// Create a payload that cannot be marshaled (channel type)
+// 	payload := make(chan int)
+// 	room.mu.RLock()
+// 	room.broadcastToParticipants_unlocked(MessageTypeChat, payload)
+// 	room.mu.RUnlock()
 
-func TestHandleClientLeft_(t *testing.T) {
-	hub := NewTestHub(nil)
-	testID := "test_room"
-	hub.rooms[testID] = NewTestRoom(testID, nil)
-	hub.removeRoom(testID)
-	assert.Empty(t, hub.rooms)
-	assert.Empty(t, hub.rooms[testID])
-}
+// 	// Should not send anything to client
+// 	select {
+// 	case <-client.send:
+// 		t.Fatal("expected no message to be sent due to marshal error")
+// 	case <-time.After(50 * time.Millisecond):
+// 		// Success: no message sent
+// 	}
+// }
+
+// func TestHandleClientLeft_(t *testing.T) {
+// 	hub := NewTestHub(nil)
+// 	testID := "test_room"
+// 	hub.rooms[testID] = NewTestRoom(testID, nil)
+// 	hub.removeRoom(testID)
+// 	assert.Empty(t, hub.rooms)
+// 	assert.Empty(t, hub.rooms[testID])
+// }

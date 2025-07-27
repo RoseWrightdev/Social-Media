@@ -12,6 +12,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// todo: rewrite test suite
+// todo: write file level comment
+
 // TokenValidator defines the interface for a JWT validator.
 type TokenValidator interface {
 	ValidateToken(tokenString string) (*auth.CustomClaims, error)
@@ -19,46 +22,9 @@ type TokenValidator interface {
 
 // Hub manages all the active rooms and holds its dependencies.
 type Hub struct {
-	rooms     map[string]*Room
+	rooms     map[RoomIDType]*Room
 	mu        sync.Mutex
 	validator TokenValidator
-}
-
-// NewHub creates a new Hub and configures it with its dependencies.
-func NewHub(validator TokenValidator) *Hub {
-	return &Hub{
-		rooms:     make(map[string]*Room),
-		validator: validator,
-	}
-}
-
-// removeRoom is a private method for the Hub to clean up empty rooms.
-func (h *Hub) removeRoom(roomID string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	// Check if the room still exists and is empty before deleting.
-	if room, ok := h.rooms[roomID]; ok && len(room.participants) == 0 {
-		delete(h.rooms, roomID)
-		slog.Info("Removed empty room from hub", "roomID", roomID)
-	}
-}
-
-// getOrCreateRoom retrieves the Room associated with the given id from the Hub.
-// If the Room does not exist, it creates a new Room, stores it in the Hub, and returns it.
-// This method is safe for concurrent use.
-func (h *Hub) getOrCreateRoom(id string) *Room {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if room, ok := h.rooms[id]; ok {
-		return room
-	}
-
-	slog.Info("Creating new session room", "roomID", id)
-	room := NewRoom(id, h.removeRoom)
-	h.rooms[id] = room
-	return room
 }
 
 // ServeWs authenticates the user and hands them off to the room.
@@ -124,7 +90,7 @@ func (h *Hub) ServeWs(c *gin.Context) {
 
 	// --- CLIENT & ROOM SETUP ---
 	roomID := c.Param("roomId")
-	room := h.getOrCreateRoom(roomID)
+	room := h.getOrCreateRoom(RoomIDType(roomID))
 
 	// todo: **ACTION REQUIRED:** Add a custom claim for 'name' or 'nickname'
 	// to Auth0 token via an Auth0 Action.
@@ -137,14 +103,51 @@ func (h *Hub) ServeWs(c *gin.Context) {
 		conn:        conn,
 		send:        make(chan []byte, 256),
 		room:        room,
-		UserID:      claims.Subject,
-		DisplayName: displayName,
+		UserID:      UserIDType(claims.Subject),
+		DisplayName: DisplayNameType(displayName),
 		Role:        RoleTypeHost, // Default role, should be derived from token scopes
 	}
 
-	room.handleClientJoined(client)
+	room.handleClientConnect(client)
 
 	// Start the client's goroutines.
 	go client.writePump()
 	go client.readPump()
+}
+
+// NewHub creates a new Hub and configures it with its dependencies.
+func NewHub(validator TokenValidator) *Hub {
+	return &Hub{
+		rooms:     make(map[RoomIDType]*Room),
+		validator: validator,
+	}
+}
+
+// removeRoom is a private method for the Hub to clean up empty rooms.
+func (h *Hub) removeRoom(roomID RoomIDType) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Check if the room still exists and is empty before deleting.
+	if room, ok := h.rooms[roomID]; ok && len(room.participants) == 0 {
+		delete(h.rooms, roomID)
+		slog.Info("Removed empty room from hub", "roomID", roomID)
+	}
+}
+
+// getOrCreateRoom retrieves the Room associated with the given RoomID from the Hub.
+// If the Room does not exist, it creates a new Room, stores it in the Hub, and returns it.
+// This method is safe for concurrent use.
+func (h *Hub) getOrCreateRoom(roomID RoomIDType) *Room {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if room, ok := h.rooms[roomID]; ok {
+		return room
+	}
+
+	slog.Info("Creating new session room", "roomroomID", roomID)
+	room := NewRoom(roomID, h.removeRoom)
+	h.rooms[roomID] = room
+	return room
 }

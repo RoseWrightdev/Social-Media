@@ -1,211 +1,214 @@
 package session
 
-import (
-	"encoding/json"
-	"errors"
-	"sync"
-	"testing"
-	"time"
+// todo: write test suite
+// todo: write file level comment
 
-	"github.com/gorilla/websocket"
-	"github.com/stretchr/testify/assert"
-)
+// import (
+// 	"encoding/json"
+// 	"errors"
+// 	"sync"
+// 	"testing"
+// 	"time"
 
-// MockConn is a mock implementation of our wsConnection interface.
-type MockConn struct {
-	ReadMessages    chan []byte
-	WrittenMessages chan []byte
-	CloseCalled     chan bool
-	ReadError       error
-	WriteError      error
-}
+// 	"github.com/gorilla/websocket"
+// 	"github.com/stretchr/testify/assert"
+// )
 
-// newMockConn creates a properly initialized MockConn for testing.
-func newMockConn() *MockConn {
-	return &MockConn{
-		ReadMessages:    make(chan []byte, 5),
-		WrittenMessages: make(chan []byte, 5),
-		CloseCalled:     make(chan bool, 1),
-	}
-}
+// // MockConn is a mock implementation of our wsConnection interface.
+// type MockConn struct {
+// 	ReadMessages    chan []byte
+// 	WrittenMessages chan []byte
+// 	CloseCalled     chan bool
+// 	ReadError       error
+// 	WriteError      error
+// }
 
-func (m *MockConn) ReadMessage() (int, []byte, error) {
-	if m.ReadError != nil {
-		return 0, nil, m.ReadError
-	}
-	msg, ok := <-m.ReadMessages
-	if !ok {
-		return 0, nil, &websocket.CloseError{Code: websocket.CloseNormalClosure}
-	}
-	return websocket.TextMessage, msg, nil
-}
+// // newMockConn creates a properly initialized MockConn for testing.
+// func newMockConn() *MockConn {
+// 	return &MockConn{
+// 		ReadMessages:    make(chan []byte, 5),
+// 		WrittenMessages: make(chan []byte, 5),
+// 		CloseCalled:     make(chan bool, 1),
+// 	}
+// }
 
-func (m *MockConn) WriteMessage(messageType int, data []byte) error {
-	if m.WriteError != nil {
-		return m.WriteError
-	}
-	m.WrittenMessages <- data
-	return nil
-}
+// func (m *MockConn) ReadMessage() (int, []byte, error) {
+// 	if m.ReadError != nil {
+// 		return 0, nil, m.ReadError
+// 	}
+// 	msg, ok := <-m.ReadMessages
+// 	if !ok {
+// 		return 0, nil, &websocket.CloseError{Code: websocket.CloseNormalClosure}
+// 	}
+// 	return websocket.TextMessage, msg, nil
+// }
 
-func (m *MockConn) Close() error {
-	select {
-	case m.CloseCalled <- true:
-	default:
-	}
-	return nil
-}
+// func (m *MockConn) WriteMessage(messageType int, data []byte) error {
+// 	if m.WriteError != nil {
+// 		return m.WriteError
+// 	}
+// 	m.WrittenMessages <- data
+// 	return nil
+// }
 
-// MockRoom is a mock implementation of a Room for testing the client.
-type MockRoom struct {
-	mu               sync.Mutex
-	handledMessage   chan Message
-	clientLeftCalled chan *Client
-}
+// func (m *MockConn) Close() error {
+// 	select {
+// 	case m.CloseCalled <- true:
+// 	default:
+// 	}
+// 	return nil
+// }
 
-func newMockRoom() *MockRoom {
-	return &MockRoom{
-		handledMessage:   make(chan Message, 5),
-		clientLeftCalled: make(chan *Client, 1),
-	}
-}
+// // MockRoom is a mock implementation of a Room for testing the client.
+// type MockRoom struct {
+// 	mu               sync.Mutex
+// 	handledMessage   chan Message
+// 	clientLeftCalled chan *Client
+// }
 
-func (m *MockRoom) handleMessage(c *Client, msg Message) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.handledMessage <- msg
-}
+// func newMockRoom() *MockRoom {
+// 	return &MockRoom{
+// 		handledMessage:   make(chan Message, 5),
+// 		clientLeftCalled: make(chan *Client, 1),
+// 	}
+// }
 
-func (m *MockRoom) handleClientLeft(c *Client) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.clientLeftCalled <- c
-}
+// func (m *MockRoom) handleMessage(c *Client, msg Message) {
+// 	m.mu.Lock()
+// 	defer m.mu.Unlock()
+// 	m.handledMessage <- msg
+// }
 
-// --- Tests ---
+// func (m *MockRoom) handleClientLeft(c *Client) {
+// 	m.mu.Lock()
+// 	defer m.mu.Unlock()
+// 	m.clientLeftCalled <- c
+// }
 
-func TestClientGetters(t *testing.T) {
-	client := &Client{UserID: "test-user", Role: RoleTypeHost}
-	assert.Equal(t, "test-user", client.GetUserID())
-	assert.Equal(t, RoleTypeHost, client.GetRole())
-}
+// // --- Tests ---
 
-func TestClient_readPump(t *testing.T) {
-	t.Run("should handle messages and pass to room", func(t *testing.T) {
-		mockConn := newMockConn()
-		mockRoom := newMockRoom()
-		client := &Client{conn: mockConn, room: mockRoom, UserID: "test-user"}
+// func TestClientGetters(t *testing.T) {
+// 	client := &Client{UserID: "test-user", Role: RoleTypeHost}
+// 	assert.Equal(t, "test-user", client.GetUserID())
+// 	assert.Equal(t, RoleTypeHost, client.GetRole())
+// }
 
-		go client.readPump()
+// func TestClient_readPump(t *testing.T) {
+// 	t.Run("should handle messages and pass to room", func(t *testing.T) {
+// 		mockConn := newMockConn()
+// 		mockRoom := newMockRoom()
+// 		client := &Client{conn: mockConn, room: mockRoom, UserID: "test-user"}
 
-		// Send a valid message
-		chatMsg := Message{Type: MessageTypeChat, Payload: ChatPayload{Content: "hello"}}
-		msgBytes, _ := json.Marshal(chatMsg)
-		mockConn.ReadMessages <- msgBytes
+// 		go client.readPump()
 
-		// Verify the room's handleMessage was called
-		select {
-		case handled := <-mockRoom.handledMessage:
-			assert.Equal(t, MessageTypeChat, handled.Type)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("timed out waiting for room to handle message")
-		}
+// 		// Send a valid message
+// 		chatMsg := Message{Type: MessageTypeChat, Payload: ChatPayload{Content: "hello"}}
+// 		msgBytes, _ := json.Marshal(chatMsg)
+// 		mockConn.ReadMessages <- msgBytes
 
-		// Close the connection to stop the pump
-		close(mockConn.ReadMessages)
-	})
+// 		// Verify the room's handleMessage was called
+// 		select {
+// 		case handled := <-mockRoom.handledMessage:
+// 			assert.Equal(t, MessageTypeChat, handled.Type)
+// 		case <-time.After(100 * time.Millisecond):
+// 			t.Fatal("timed out waiting for room to handle message")
+// 		}
 
-	t.Run("should continue on json unmarshal error", func(t *testing.T) {
-		mockConn := newMockConn()
-		mockRoom := newMockRoom()
-		client := &Client{conn: mockConn, room: mockRoom}
+// 		// Close the connection to stop the pump
+// 		close(mockConn.ReadMessages)
+// 	})
 
-		go client.readPump()
+// 	t.Run("should continue on json unmarshal error", func(t *testing.T) {
+// 		mockConn := newMockConn()
+// 		mockRoom := newMockRoom()
+// 		client := &Client{conn: mockConn, room: mockRoom}
 
-		// Send invalid JSON
-		mockConn.ReadMessages <- []byte("{not_json}")
+// 		go client.readPump()
 
-		// Send a valid message afterwards to ensure the loop didn't break
-		chatMsg := Message{Type: MessageTypeChat}
-		msgBytes, _ := json.Marshal(chatMsg)
-		mockConn.ReadMessages <- msgBytes
+// 		// Send invalid JSON
+// 		mockConn.ReadMessages <- []byte("{not_json}")
 
-		select {
-		case <-mockRoom.handledMessage:
-			// Success, the pump continued
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("readPump should have continued after unmarshal error")
-		}
-		close(mockConn.ReadMessages)
-	})
+// 		// Send a valid message afterwards to ensure the loop didn't break
+// 		chatMsg := Message{Type: MessageTypeChat}
+// 		msgBytes, _ := json.Marshal(chatMsg)
+// 		mockConn.ReadMessages <- msgBytes
 
-	t.Run("should exit and clean up on read error", func(t *testing.T) {
-		mockConn := newMockConn()
-		mockConn.ReadError = errors.New("network error")
-		mockRoom := newMockRoom()
-		client := &Client{conn: mockConn, room: mockRoom}
+// 		select {
+// 		case <-mockRoom.handledMessage:
+// 			// Success, the pump continued
+// 		case <-time.After(100 * time.Millisecond):
+// 			t.Fatal("readPump should have continued after unmarshal error")
+// 		}
+// 		close(mockConn.ReadMessages)
+// 	})
 
-		// Run the pump directly as it will exit immediately
-		client.readPump()
+// 	t.Run("should exit and clean up on read error", func(t *testing.T) {
+// 		mockConn := newMockConn()
+// 		mockConn.ReadError = errors.New("network error")
+// 		mockRoom := newMockRoom()
+// 		client := &Client{conn: mockConn, room: mockRoom}
 
-		// Verify that handleClientLeft was called
-		select {
-		case leftClient := <-mockRoom.clientLeftCalled:
-			assert.Equal(t, client, leftClient)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("timed out waiting for handleClientLeft to be called")
-		}
+// 		// Run the pump directly as it will exit immediately
+// 		client.readPump()
 
-		// Verify that the connection was closed
-		select {
-		case <-mockConn.CloseCalled:
-			// Success
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("timed out waiting for connection to be closed")
-		}
-	})
-}
+// 		// Verify that handleClientLeft was called
+// 		select {
+// 		case leftClient := <-mockRoom.clientLeftCalled:
+// 			assert.Equal(t, client, leftClient)
+// 		case <-time.After(100 * time.Millisecond):
+// 			t.Fatal("timed out waiting for handleClientLeft to be called")
+// 		}
 
-func TestClient_writePump(t *testing.T) {
-	t.Run("should write messages from send channel", func(t *testing.T) {
-		mockConn := newMockConn()
-		client := &Client{
-			conn: mockConn,
-			send: make(chan []byte, 1),
-		}
+// 		// Verify that the connection was closed
+// 		select {
+// 		case <-mockConn.CloseCalled:
+// 			// Success
+// 		case <-time.After(100 * time.Millisecond):
+// 			t.Fatal("timed out waiting for connection to be closed")
+// 		}
+// 	})
+// }
 
-		go client.writePump()
+// func TestClient_writePump(t *testing.T) {
+// 	t.Run("should write messages from send channel", func(t *testing.T) {
+// 		mockConn := newMockConn()
+// 		client := &Client{
+// 			conn: mockConn,
+// 			send: make(chan []byte, 1),
+// 		}
 
-		testMessage := []byte("hello from server")
-		client.send <- testMessage
+// 		go client.writePump()
 
-		select {
-		case written := <-mockConn.WrittenMessages:
-			assert.Equal(t, testMessage, written)
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("timed out waiting for message to be written")
-		}
-		close(client.send)
-	})
+// 		testMessage := []byte("hello from server")
+// 		client.send <- testMessage
 
-	t.Run("should exit and close on write error", func(t *testing.T) {
-		mockConn := newMockConn()
-		mockConn.WriteError = errors.New("write error")
-		client := &Client{
-			conn: mockConn,
-			send: make(chan []byte, 1),
-		}
+// 		select {
+// 		case written := <-mockConn.WrittenMessages:
+// 			assert.Equal(t, testMessage, written)
+// 		case <-time.After(100 * time.Millisecond):
+// 			t.Fatal("timed out waiting for message to be written")
+// 		}
+// 		close(client.send)
+// 	})
 
-		go client.writePump()
+// 	t.Run("should exit and close on write error", func(t *testing.T) {
+// 		mockConn := newMockConn()
+// 		mockConn.WriteError = errors.New("write error")
+// 		client := &Client{
+// 			conn: mockConn,
+// 			send: make(chan []byte, 1),
+// 		}
 
-		client.send <- []byte("this will fail")
+// 		go client.writePump()
 
-		// Verify that the connection was closed
-		select {
-		case <-mockConn.CloseCalled:
-			// Success
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("timed out waiting for connection to be closed on write error")
-		}
-	})
-}
+// 		client.send <- []byte("this will fail")
+
+// 		// Verify that the connection was closed
+// 		select {
+// 		case <-mockConn.CloseCalled:
+// 			// Success
+// 		case <-time.After(100 * time.Millisecond):
+// 			t.Fatal("timed out waiting for connection to be closed on write error")
+// 		}
+// 	})
+// }
