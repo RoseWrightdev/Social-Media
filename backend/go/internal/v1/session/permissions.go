@@ -32,3 +32,9 @@ func HasScreensharePermission() set.Set[RoleType] {
 func HasHostPermission() set.Set[RoleType] {
 	return set.New(RoleTypeHost)
 }
+
+// HasPermission checks if the given client has any of the specified permissions.
+// It returns true if the client's role is present in the provided set of RoleType permissions.
+func HasPermission(client *Client, permissions set.Set[RoleType]) bool {
+	return permissions.Has(client.Role)
+}

@@ -130,49 +130,45 @@ func (r *Room) handleMessage(client *Client, msg Message) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	_, isHost := r.hosts[client.UserID]
-	_, isSharingScreen := r.sharingScreen[client.UserID]
-	_, isParticipant := r.participants[client.UserID]
-	_, iswaiting := r.waiting[client.UserID]
-
 	switch msg.Type {
 	case MessageType(ClientEventChat):
-		if isParticipant || isHost {
+		if HasPermission(client, HasParticipantPermission()) {
 			r.handleChatMessage_unlocked(client, msg.Payload)
 		}
 
 	case MessageType(ClientEventHand):
-		if isParticipant || isHost {
+		if HasPermission(client, HasParticipantPermission()) {
 			r.handleHand_unlocked(client, msg.Payload)
 		}
 
 	case MessageType(ClientEventAdmissionRequest):
-		if !iswaiting && !isParticipant && !isHost {
+		if HasPermission(client, HasWaitingPermission()) {
 			r.handleRequestWaiting_unlocked(client, msg.Payload)
 		}
 
 	case MessageType(ClientEventAcceptWaiting):
-		if isHost {
+		if HasPermission(client, HasHostPermission()) {
 			r.handleAcceptWaiting_unlocked(msg.Payload)
 		}
 
 	case MessageType(ClientEventDenyUser):
-		if isHost {
+		if HasPermission(client, HasHostPermission()) {
 			r.handleDenyWaiting_unlocked(msg.Payload)
 		}
 
 	case MessageType(ClientEventRequestScreenshare):
-		if (!isSharingScreen && !iswaiting) && (isParticipant || isHost) {
+		if  (client.Role != RoleTypeScreenshare) && 
+		HasPermission(client, HasParticipantPermission()) {
 			r.handleRequestScreenshare_unlocked(client, msg.Payload)
 		}
 
 	case MessageType(ClientEventAcceptScreenshare):
-		if isHost {
+		if HasPermission(client, HasHostPermission()) {
 			r.handleAcceptScreenshare_unlocked(client, msg.Payload)
 		}
 
 	case MessageType(ClientEventDenyScreenshare):
-		if isHost {
+		if HasPermission(client, HasHostPermission()) {
 			r.handleDenyScreenshare_unlocked(client, msg.Payload)
 		}
 
