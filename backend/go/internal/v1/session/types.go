@@ -1,9 +1,5 @@
 package session
 
-// todo: add file level docs
-// todo: add missing & review existing comments
-
-
 // RoleType describes the type of client.
 type RoleType string
 
@@ -24,41 +20,24 @@ const (
 // MessageType defines the type of a WebSocket message.
 type MessageType string
 
-type ClientEvent MessageType
-
-type ServerEvent MessageType
-
+// Event represents a specific type of message event in the session context.
+// It is defined as an alias for MessageType.
+type Event MessageType
 
 const (
-	// --- Client-to-Server Event Types ---
-	// todo: add missing client Events
-
-	ClientEventChat               ClientEvent = "chat_message"
-	ClientEventHand               ClientEvent = "hand"
-	ClientEventAdmissionRequest   ClientEvent = "admission_request"
-
-	// Sent by host client 
-
-	ClientEventAcceptWaiting      ClientEvent = "accept_waiting"
-	ClientEventDenyUser           ClientEvent = "deny_user"
-	ClientEventRequestScreenshare ClientEvent = "request_screenshare"
-	ClientEventAcceptScreenshare  ClientEvent = "accept_screenshare"
-	ClientEventDenyScreenshare    ClientEvent = "deny_screenshare"
-	ClientEventAddHost			  ClientEvent = ""
-	ClientEventDenyHost			  ClientEvent = ""
-
-	// --- Server-to-Client Event Types ---
-
-	// todo: change naming convention to "SeverEvent" from "EventType"
-
-	EventTypeRoomState            ServerEvent = "room_state"           // The single source of truth for room state.
-	EventTypeJoinedWaiting        ServerEvent = "joined_waiting"
-	EventTypeLeftWaiting          ServerEvent = "left_waiting"
-	EventTypeParticipantJoined    ServerEvent = "participant_joined"
-	EventTypeParticipantLeft      ServerEvent = "participant_left"
-	EventTypeHand                 ServerEvent = "hand_state_changed"
-	EventTypeAcceptScreenshare    ServerEvent = "accept_screenshare"
-	EventTypeDenyScreenshare      ServerEvent = "deny_screenshare"
+	EventAddChat            Event = "add_chat"
+	EventDeleteChat         Event = "delete_chat"
+	EventRecentsChat		Event = "recents_chat"
+	EventRaiseHand          Event = "raise_hand"
+	EventLowerHand          Event = "lower_hand"
+	EventRequestWaiting     Event = "waiting_request"
+	EventConnect            Event = "connect"
+	EventDisconnect         Event = "disconnect"
+	EventAcceptWaiting      Event = "accept_waiting"
+	EventDenyWaiting        Event = "deny_waiting"
+	EventRequestScreenshare Event = "request_screenshare"
+	EventAcceptScreenshare  Event = "accept_screenshare"
+	EventDenyScreenshare    Event = "deny_screenshare"
 )
 
 // Message is the structure for all incoming and outgoing WebSocket messages.
@@ -68,86 +47,66 @@ type Message struct {
 }
 
 // --- Payload Types ---
-// todo: add missing payload types
-// todo: add missing comments, review existing
 
-
-// RaiseHandPayload is the payload for the "raise_hand" message.
 type RaiseHandPayload struct {
+	ClientInfo
 	IsRaised bool `json:"isRaised"`
 }
 
-// AcceptWaitingPayload is the payload for the "accept_waiting" message.
-type AcceptWaitingPayload struct {
-	TargetUserID UserIDType `json:"targetUserId"`
-}
+// AcceptWaitingPayload is an alias for ClientInfo, representing the payload structure.
+type AcceptWaitingPayload = ClientInfo
 
-// DenyUserPayload is the payload for the "deny_user" message.
-type DenyWaitingPayload struct {
-	TargetUserID UserIDType `json:"targetUserId"`
-	Reason       string 	`json:"reason,omitempty"`
-}
+type DenyWaitingPayload = ClientInfo
 
-// ParticipantInfo holds public information about a user in the room.
-type ParticipantInfo struct {
+// ClientInfo holds public information about a user in the room.
+type ClientInfo struct {
 	UserID      UserIDType 		`json:"userId"`
 	DisplayName DisplayNameType `json:"displayName"`
 }
+// ClientDisconnectPayload is an alias for ClientInfo, representing the payload structure.
+type ClientDisconnectPayload = ClientInfo
 
-// RoomStatePayload contains the full state of a room, sent to clients.
+
+// RoomStatePayload contains the full state of a room.
 type RoomStatePayload struct {
-	RoomID         RoomIDType        `json:"roomId"`
-	Hosts		   []ParticipantInfo `json:"hosts"`
-	Participants   []ParticipantInfo `json:"participants"`
-	HandsRaised    []ParticipantInfo `json:"handsRaised"`
-	WaitingUsers   []ParticipantInfo `json:"waitingUsers"`
-	ScreensharerID []ParticipantInfo `json:"screensharerId,omitempty"`
+	ClientInfo
+	RoomID         RoomIDType   `json:"roomId"`
+	Hosts		   []ClientInfo `json:"hosts"`
+	Participants   []ClientInfo `json:"participants"`
+	HandsRaised    []ClientInfo `json:"handsRaised"`
+	WaitingUsers   []ClientInfo `json:"waitingUsers"`
+	ScreensharerID []ClientInfo `json:"screensharerId,omitempty"`
 }
 
-// RequestWaitingPayload is the payload for "admission_request", sent to hosts.
-type RequestWaitingPayload struct {
-	UserID 		 UserIDType 	 `json:"userId"`
-	DisplayName  DisplayNameType `json:"displayName"`
-}
+// RequestWaitingPayload is an alias for ClientInfo, representing the payload structure.
+type RequestWaitingPayload = ClientInfo
 
-type AccceptWaitingPayload struct {
-	TargetUserID UserIDType `json:"userId"`
-}
+// AccceptWaitingPayload is an alias for ClientInfo, representing the payload structure.
+type AccceptWaitingPayload = ClientInfo
 
-// ParticipantJoinedPayload is the payload for "participant_joined".
-type ParticipantJoinedPayload struct {
-	Participant ParticipantInfo `json:"participant"`
-}
+// ParticipantJoinedPayload is an alias for ClientInfo, representing the payload structure.
+type ParticipantJoinedPayload = ClientInfo
 
-// ParticipantLeftPayload is the payload for "participant_left".
-type ParticipantLeftPayload struct {
-	UserID UserIDType `json:"userId"`
-}
+// ParticipantLeftPayload is an alias for ClientInfo, representing the payload structure.
+type ParticipantLeftPayload = ClientInfo
 
-// HandPayload is the payload for "hand_state_changed".
+// HandPayload is an alias for ClientInfo, representing the payload structure.
 type HandPayload struct {
-	UserID   UserIDType `json:"userId"`
-	IsRaised bool       `json:"isRaised"`
+	ClientInfo
+	IsRaised bool `json:"isRaised"`
 }
 
 type ChatMessagePayload struct {
-	UserID      UserIDType      `json:"userId"`
-	DisplayName DisplayNameType `json:"displayName"`
-	Content     string          `json:"content"`
-	SenderID    UserIDType      `json:"senderId"`
-	Timestamp   int64           `json:"timestamp"`
+	ClientInfo
+	Content    string `json:"content"`
+	Timestamp  int64  `json:"timestamp"`
 }
 
-type RequestScreensharePayload struct {
-	UserID      UserIDType      `json:"userId"`
-	DisplayName DisplayNameType `json:"displayName"`
-}
+// RequestScreensharePayload is an alias for ClientInfo, representing the payload structure.
+type RequestScreensharePayload = ClientInfo
 
-type AcceptScreensharePayload struct {
-	TargetUserID UserIDType `json:"userId"`
-}
+// AcceptScreensharePayload is an alias for ClientInfo, representing the payload structure.
+type AcceptScreensharePayload = ClientInfo
 
-type DenyScreensharePayload struct {
-	UserID UserIDType `json:"userId"`
-	Reason string     `json:"reason,omitempty"`
-}
+// DenyScreensharePayload is an alias for ClientInfo, representing the payload structure.
+type DenyScreensharePayload = ClientInfo

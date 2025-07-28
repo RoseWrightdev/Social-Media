@@ -6,35 +6,32 @@ import "k8s.io/utils/set"
 // used in combination with (r *Room) broadcast (r *Room) broadcastRoomState
 // to describe which roles have permission to view the message.
 
-// HasWaitingPermission returns a set containing the RoleTypeWaiting role.
-// This can be used to check if a user has the "waiting" permission.
+// HasParticipantPermission returns a set of RoleType values that are granted
+// waiting-level permissions.
 func HasWaitingPermission() set.Set[RoleType] {
 	return set.New(RoleTypeWaiting)
 }
 
 // HasParticipantPermission returns a set of RoleType values that are granted
-// participant-level permissions. The set includes roles such as Host, 
-// Screenshare, and Participant.
+// participant-level permissions.
 func HasParticipantPermission() set.Set[RoleType] {
 	return set.New(RoleTypeHost, RoleTypeScreenshare, RoleTypeParticipant)
 }
 
-// HasScreensharePermission returns a set of RoleType values that are 
-// permitted to use the screenshare feature. The set typically includes roles
-// such as Host and Screenshare, granting them the necessary permissions.
+// HasScreensharePermission returns a set of RoleType values that are granted
+// screenshare-level permissions.
 func HasScreensharePermission() set.Set[RoleType] {
 	return set.New(RoleTypeHost, RoleTypeScreenshare)
 }
 
-// HasHostPermission returns a set containing the RoleTypeHost role,
-// representing the permissions required for a host user.
-// This can be used to check if a user has host-level permissions.
+// HasHostPermission returns a set of RoleType values that are granted
+// host-level permissions.
 func HasHostPermission() set.Set[RoleType] {
 	return set.New(RoleTypeHost)
 }
 
-// HasPermission checks if the given client has any of the specified permissions.
-// It returns true if the client's role is present in the provided set of RoleType permissions.
-func HasPermission(client *Client, permissions set.Set[RoleType]) bool {
-	return permissions.Has(client.Role)
+// HasPermission checks if the given client has any of the specified permissions
+// for any given level. 
+func HasPermission(role RoleType, permissions set.Set[RoleType]) bool {
+	return permissions.Has(role)
 }

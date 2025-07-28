@@ -9,8 +9,6 @@ import (
 	"k8s.io/utils/set"
 )
 
-// todo: add file level docs
-
 // RoomIDType represents the uquie id for the room.
 type RoomIDType string
 
@@ -46,7 +44,7 @@ type Room struct {
 
 	// --- Client State management ---
 
-	raisingHand    map[UserIDType]*Client // Participants with their hand raised
+	raisingHand   map[UserIDType]*Client // Participants with their hand raised
 	sharingScreen map[UserIDType]*Client // Participants currently sharing their screen
 	unmuted       map[UserIDType]*Client // Participants currently unmuted
 	cameraOn      map[UserIDType]*Client // Perticipants currented with their camera on
@@ -65,31 +63,39 @@ func (r *Room) handleClientConnect(client *Client) {
 	// First user to join becomes the host.
 	if len(r.participants) == 0 && len(r.hosts) == 0 {
 		slog.Info("First user joined, making them host.", "room", r.ID, "userID", client.UserID)
-		r.addHost_unlocked(client)
+		r.addHost(client)
 		return
 	}
-	r.addWaiting_unlocked(client)
+	r.addWaiting(client)
 }
 
-// todo: umimpl
-//
 // handleClientLeft manages cleanup when a client disconnects.
 // It removes the client from all room-related states.
 // If the client was the last participant, it triggers the onEmpty callback to clean up the room itself.
 // Otherwise, it broadcasts the updated room state to remaining clients.
 func (r *Room) handleClientDisconnect(client *Client) {
-	panic("umimpl")
-	// r.mu.Lock()
-	// defer r.mu.Unlock()
-	// r.disconnectClient(client)
-	// slog.Info("Client disconnected and removed from room", "room", r.ID, "userID", client.UserID)
-	// if r.isRoomEmpty() {
-	// 	if r.onEmpty == nil {
-	// 		panic("onEmpty callback not defined. This will cause a memory leak.")
-	// 	}
-	// }
-	// go r.onEmpty(r.ID) // Run in a goroutine to avoid potential deadlocks
-	// r.broadcast()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.disconnectClient(client)
+	slog.Info("Client disconnected and removed from room", "room", r.ID, "userID", client.UserID)
+
+	payload := ClientDisconnectPayload{
+		UserID:      client.UserID,
+		DisplayName: client.DisplayName,
+	}
+
+	// Broadcast to remaining clients
+	r.broadcast(MessageType(EventDisconnect), payload, nil)
+
+	// Check if room is empty AFTER broadcasting
+	if r.isRoomEmpty() {
+		if r.onEmpty == nil {
+			panic("onEmpty callback not defined. This will cause a memory leak.")
+		}
+		// Run in a goroutine to avoid potential deadlocks
+		go r.onEmpty(r.ID)
+	}
 }
 
 // NewRoom creates and returns a new Room instance with the specified ID and an onEmpty callback.
@@ -123,53 +129,77 @@ func NewRoom(id RoomIDType, onEmptyCallback func(RoomIDType)) *Room {
 	}
 }
 
-// handleMessage is the central router for all incoming messages from clients.
-// handleMessage processes an incoming message from a client within the room.
-// It acquires a lock to ensure thread safety and determines the client's role
-func (r *Room) handleMessage(client *Client, msg Message) {
+// router is the central router for all incoming messages from clients.
+// router calls the speficied handler for the given type if the client
+// has the required permissions.
+//
+// It acquires a lock to ensure thread safety.
+func (r *Room) router(client *Client, data any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	msg, ok := data.(Message)
+	if !ok {
+		slog.Error("router failed to marshal incoming message to type Message", "msg", msg, "id", client.UserID)
+		return
+	}
+
+	role := client.Role
+
 	switch msg.Type {
-	case MessageType(ClientEventChat):
-		if HasPermission(client, HasParticipantPermission()) {
-			r.handleChatMessage_unlocked(client, msg.Payload)
+	case MessageType(EventAddChat):
+		if HasPermission(role, HasParticipantPermission()) {
+			r.handleAddChat(client, msg.Payload)
 		}
 
-	case MessageType(ClientEventHand):
-		if HasPermission(client, HasParticipantPermission()) {
-			r.handleHand_unlocked(client, msg.Payload)
+	case MessageType(EventDeleteChat):
+		if HasPermission(role, HasParticipantPermission()) {
+			r.handleDeleteChat(client, msg.Payload)
 		}
 
-	case MessageType(ClientEventAdmissionRequest):
-		if HasPermission(client, HasWaitingPermission()) {
-			r.handleRequestWaiting_unlocked(client, msg.Payload)
+	case MessageType(EventRecentsChat):
+		if HasPermission(role, HasParticipantPermission()) {
+			r.handleRecentsChat(client, msg.Payload)
 		}
 
-	case MessageType(ClientEventAcceptWaiting):
-		if HasPermission(client, HasHostPermission()) {
-			r.handleAcceptWaiting_unlocked(msg.Payload)
+	case MessageType(EventRaiseHand):
+		if HasPermission(role, HasParticipantPermission()) {
+			r.handleRaiseHand(client, msg.Payload)
+		}
+	case MessageType(EventLowerHand):
+		if HasPermission(role, HasParticipantPermission()) {
+			r.handleLowerHand(client, msg.Payload)
 		}
 
-	case MessageType(ClientEventDenyUser):
-		if HasPermission(client, HasHostPermission()) {
-			r.handleDenyWaiting_unlocked(msg.Payload)
+	case MessageType(EventRequestWaiting):
+		if HasPermission(role, HasWaitingPermission()) {
+			r.handleRequestWaiting(client, msg.Payload)
 		}
 
-	case MessageType(ClientEventRequestScreenshare):
-		if  (client.Role != RoleTypeScreenshare) && 
-		HasPermission(client, HasParticipantPermission()) {
-			r.handleRequestScreenshare_unlocked(client, msg.Payload)
+	case MessageType(EventAcceptWaiting):
+		if HasPermission(role, HasHostPermission()) {
+			r.handleAcceptWaiting(msg.Payload)
 		}
 
-	case MessageType(ClientEventAcceptScreenshare):
-		if HasPermission(client, HasHostPermission()) {
-			r.handleAcceptScreenshare_unlocked(client, msg.Payload)
+	case MessageType(EventDenyWaiting):
+		if HasPermission(role, HasHostPermission()) {
+			r.handleDenyWaiting(msg.Payload)
 		}
 
-	case MessageType(ClientEventDenyScreenshare):
-		if HasPermission(client, HasHostPermission()) {
-			r.handleDenyScreenshare_unlocked(client, msg.Payload)
+	case MessageType(EventRequestScreenshare):
+		if (client.Role != RoleTypeScreenshare) &&
+			HasPermission(role, HasParticipantPermission()) {
+			r.handleRequestScreenshare(client, msg.Payload)
+		}
+
+	case MessageType(EventAcceptScreenshare):
+		if HasPermission(role, HasHostPermission()) {
+			r.handleAcceptScreenshare(client, msg.Payload)
+		}
+
+	case MessageType(EventDenyScreenshare):
+		if HasPermission(role, HasHostPermission()) {
+			r.handleDenyScreenshare(client, msg.Payload)
 		}
 
 	default:
@@ -209,7 +239,7 @@ func (r *Room) broadcast(MsgType MessageType, payload any, roles set.Set[RoleTyp
 		return
 	}
 
-	if len(roles) == 0 {
+	if roles == nil {
 		// Send to all roles
 		for _, m := range []map[UserIDType]*Client{r.hosts, r.sharingScreen, r.participants, r.waiting} {
 			for _, p := range m {

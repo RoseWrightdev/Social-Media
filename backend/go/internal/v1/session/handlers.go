@@ -1,48 +1,67 @@
 package session
 
+// hanlers use methods to interact with roomstaten & log their call
+
 // todo: umimpl
 //
-func (r *Room) handleChatMessage_unlocked(sender *Client, payload any) {
-	//todo: impl chat history
+func (r *Room) handleAddChat(sender *Client, payload any) {
 	panic("todo: unimpl")
 }
 
 // todo: umimpl
 //
-func (r *Room) handleHand_unlocked(client *Client, payload any) {
+func (r *Room) handleDeleteChat(sender *Client, payload any) {
 	panic("todo: unimpl")
 }
 
 // todo: umimpl
 //
-func (r *Room) handleRequestWaiting_unlocked(client *Client, payload any) {
+func (r *Room) handleRecentsChat(sender *Client, payload any) {
 	panic("todo: unimpl")
 }
 
 // todo: umimpl
 //
-func (r *Room) handleAcceptWaiting_unlocked(payload any) {
+func (r *Room) handleRaiseHand(client *Client, payload any) {
 	panic("todo: unimpl")
 }
 
 // todo: umimpl
 //
-func (r *Room) handleDenyWaiting_unlocked(payload any) {
+func (r *Room) handleLowerHand(client *Client, payload any) {
 	panic("todo: unimpl")
 }
 
 // todo: umimpl
 //
-func (r *Room) handleRequestScreenshare_unlocked(client *Client, payload any) {
+func (r *Room) handleRequestWaiting(client *Client, payload any) {
+	panic("todo: unimpl")
+}
+
+// todo: umimpl
+//
+func (r *Room) handleAcceptWaiting(payload any) {
+	panic("todo: unimpl")
+}
+
+// todo: umimpl
+//
+func (r *Room) handleDenyWaiting(payload any) {
+	panic("todo: unimpl")
+}
+
+// todo: umimpl
+//
+func (r *Room) handleRequestScreenshare(client *Client, payload any) {
 	panic("todo: unimpl")
 }
 
 // todo: unimpl
-func (r *Room) handleAcceptScreenshare_unlocked(client *Client, payload any) {
+func (r *Room) handleAcceptScreenshare(client *Client, payload any) {
 	panic("todo: unimpl")
 }
 
 // todo: unimpl
-func (r *Room) handleDenyScreenshare_unlocked(client *Client, payload any) {
+func (r *Room) handleDenyScreenshare(client *Client, payload any) {
 	panic("todo: unimpl")
 }
