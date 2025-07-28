@@ -45,7 +45,6 @@ func (m *MockConn) ReadMessage() (int, []byte, error) {
 	return websocket.TextMessage, msg, nil
 }
 
-
 // WriteMessage simulates writing a message to a connection. It sends the provided data
 // to the WrittenMessages channel unless WriteError is set, in which case it returns the error.
 // This method is typically used in tests to mock WebSocket or similar message-based connections.
@@ -84,14 +83,13 @@ func newMockRoom() *MockRoom {
 	}
 }
 
-// handleMessage processes an incoming Message from a Client and sends it to the handledMessage channel.
+// router processes an incoming Message from a Client and sends it to the handledMessage channel.
 // It acquires a lock to ensure thread-safe access to the handledMessage channel.
-func (m *MockRoom) handleMessage(c *Client, msg Message) {
+func (m *MockRoom) router(c *Client, data any) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.handledMessage <- msg
+	m.handledMessage <- data.(Message)
 }
-
 
 // handleClientDisconnect is added to satisfy the Roomer interface.
 func (m *MockRoom) handleClientDisconnect(c *Client) {
@@ -108,14 +106,14 @@ func TestClient_readPump(t *testing.T) {
 		go client.readPump()
 
 		// Send a valid message
-		chatMsg := Message{Type: MessageType(ClientEventChat), Payload: ChatMessagePayload{Content: "hello"}}
+		chatMsg := Message{Type: MessageType(EventAddChat), Payload: ChatMessagePayload{Content: "hello"}}
 		msgBytes, _ := json.Marshal(chatMsg)
 		mockConn.ReadMessages <- msgBytes
 
-		// Verify the room's handleMessage was called
+		// Verify the room's router was called
 		select {
 		case handled := <-mockRoom.handledMessage:
-			assert.Equal(t, MessageType(ClientEventChat), handled.Type)
+			assert.Equal(t, MessageType(EventAddChat), handled.Type)
 		case <-time.After(100 * time.Millisecond):
 			t.Fatal("timed out waiting for room to handle message")
 		}
@@ -135,7 +133,7 @@ func TestClient_readPump(t *testing.T) {
 		mockConn.ReadMessages <- []byte("{not_json}")
 
 		// Send a valid message afterwards to ensure the loop didn't break
-		chatMsg := Message{Type: MessageType(ClientEventChat)}
+		chatMsg := Message{Type: MessageType(EventAddChat)}
 		msgBytes, _ := json.Marshal(chatMsg)
 		mockConn.ReadMessages <- msgBytes
 

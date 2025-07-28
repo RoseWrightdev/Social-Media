@@ -20,24 +20,24 @@ type wsConnection interface {
 // Roomer defines the methods a Client needs to interact with a Room.
 // This allows us to use a real Room in production and a MockRoom in tests.
 type Roomer interface {
-	handleMessage(c *Client, msg Message)
+	router(c *Client, data any)
 	handleClientDisconnect(c *Client)
 }
 
 // Client represents a single connected user.
 // The combination of UserID, DisplayName, and Role is sufficient for all permission checks.
 type Client struct {
-	conn        wsConnection
-	send        chan []byte
-	room        Roomer
-	UserID      UserIDType
-	DisplayName DisplayNameType
-	Role        RoleType
+	conn             wsConnection
+	send             chan []byte
+	room             Roomer
+	UserID           UserIDType
+	DisplayName      DisplayNameType
+	Role             RoleType
 	drawOrderElement *list.Element
 }
 
 // readPump continuously reads messages from the client's WebSocket connection.
-// It unmarshals incoming messages into the Message struct and passes them to the room's handleMessage method.
+// It unmarshals incoming messages into the Message struct and passes them to the room's messageRouter method.
 // If the connection is closed or an error occurs, it logs the event and ensures the client is removed from the room.
 // Ran as a goroutine.
 func (c *Client) readPump() {
@@ -61,7 +61,7 @@ func (c *Client) readPump() {
 			continue
 		}
 
-		c.room.handleMessage(c, msg)
+		c.room.router(c, msg)
 	}
 }
 
