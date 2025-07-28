@@ -12,8 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// todo: rewrite test suite
-// todo: write file level comment
 
 // TokenValidator defines the interface for a JWT validator.
 type TokenValidator interface {
