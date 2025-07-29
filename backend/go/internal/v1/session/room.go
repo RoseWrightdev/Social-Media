@@ -9,23 +9,20 @@ import (
 	"k8s.io/utils/set"
 )
 
-// RoomIDType represents the uquie id for the room.
-type RoomIDType string
-
 // Room now manages the state for a meeting session.
 type Room struct {
 	// --- global state ---
 
-	ID                   RoomIDType   // The room ID
+	ID                   RoomIdType   // The room ID
 	mu                   sync.RWMutex // conn sync
 	chatHistory          *list.List   // The chat history
 	maxChatHistoryLength int          // Max length
 
 	// --- Permission State Management ---
 
-	hosts        map[UserIDType]*Client // Clients with host privileges
-	participants map[UserIDType]*Client // Clients who are in the main meeting
-	waiting      map[UserIDType]*Client // Clients waiting for admission
+	hosts        map[ClientIdType]*Client // Clients with host privileges
+	participants map[ClientIdType]*Client // Clients who are in the main meeting
+	waiting      map[ClientIdType]*Client // Clients waiting for admission
 
 	// --- Draw Orders ---
 
@@ -44,13 +41,13 @@ type Room struct {
 
 	// --- Client State management ---
 
-	raisingHand   map[UserIDType]*Client // Participants with their hand raised
-	sharingScreen map[UserIDType]*Client // Participants currently sharing their screen
-	unmuted       map[UserIDType]*Client // Participants currently unmuted
-	cameraOn      map[UserIDType]*Client // Perticipants currented with their camera on
+	raisingHand   map[ClientIdType]*Client // Participants with their hand raised
+	sharingScreen map[ClientIdType]*Client // Participants currently sharing their screen
+	unmuted       map[ClientIdType]*Client // Participants currently unmuted
+	cameraOn      map[ClientIdType]*Client // Perticipants currented with their camera on
 
 	// onEmpty is the callback function to call when the room has no more participants.
-	onEmpty func(RoomIDType)
+	onEmpty func(RoomIdType)
 }
 
 // handleClientJoined manages the logic for when a client joins the room.
@@ -62,7 +59,7 @@ func (r *Room) handleClientConnect(client *Client) {
 
 	// First user to join becomes the host.
 	if len(r.participants) == 0 && len(r.hosts) == 0 {
-		slog.Info("First user joined, making them host.", "room", r.ID, "userID", client.UserID)
+		slog.Info("First user joined, making them host.", "room", r.ID, "ClientId", client.ID)
 		r.addHost(client)
 		return
 	}
@@ -78,15 +75,15 @@ func (r *Room) handleClientDisconnect(client *Client) {
 	defer r.mu.Unlock()
 
 	r.disconnectClient(client)
-	slog.Info("Client disconnected and removed from room", "room", r.ID, "userID", client.UserID)
+	slog.Info("Client disconnected and removed from room", "room", r.ID, "ClientId", client.ID)
 
 	payload := ClientDisconnectPayload{
-		UserID:      client.UserID,
+		ClientId:    client.ID,
 		DisplayName: client.DisplayName,
 	}
 
 	// Broadcast to remaining clients
-	r.broadcast(MessageType(EventDisconnect), payload, nil)
+	r.broadcast(Event(EventDisconnect), payload, nil)
 
 	// Check if room is empty AFTER broadcasting
 	if r.isRoomEmpty() {
@@ -108,22 +105,22 @@ func (r *Room) handleClientDisconnect(client *Client) {
 //
 // Returns:
 //   - A pointer to the newly created Room.
-func NewRoom(id RoomIDType, onEmptyCallback func(RoomIDType)) *Room {
+func NewRoom(id RoomIdType, onEmptyCallback func(RoomIdType)) *Room {
 	return &Room{
 		ID: id,
 
-		hosts:        make(map[UserIDType]*Client),
-		participants: make(map[UserIDType]*Client),
-		waiting:      make(map[UserIDType]*Client),
+		hosts:        make(map[ClientIdType]*Client),
+		participants: make(map[ClientIdType]*Client),
+		waiting:      make(map[ClientIdType]*Client),
 
 		waitingDrawOrderStack: list.New(),
 		clientDrawOrderQueue:  list.New(),
 		handDrawOrderQueue:    list.New(),
 
-		raisingHand:   make(map[UserIDType]*Client),
-		sharingScreen: make(map[UserIDType]*Client),
-		unmuted:       make(map[UserIDType]*Client),
-		cameraOn:      make(map[UserIDType]*Client),
+		raisingHand:   make(map[ClientIdType]*Client),
+		sharingScreen: make(map[ClientIdType]*Client),
+		unmuted:       make(map[ClientIdType]*Client),
+		cameraOn:      make(map[ClientIdType]*Client),
 
 		onEmpty: onEmptyCallback,
 	}
@@ -140,70 +137,73 @@ func (r *Room) router(client *Client, data any) {
 
 	msg, ok := data.(Message)
 	if !ok {
-		slog.Error("router failed to marshal incoming message to type Message", "msg", msg, "id", client.UserID)
+		slog.Error("router failed to marshal incoming message to type Message", "msg", msg, "id", client.ID)
 		return
 	}
 
 	role := client.Role
+	isHost := HasPermission(role, HasHostPermission())
+	isParticipant := HasPermission(role, HasParticipantPermission())
+	isWaiting := HasPermission(role, HasWaitingPermission())
 
-	switch msg.Type {
-	case MessageType(EventAddChat):
-		if HasPermission(role, HasParticipantPermission()) {
-			r.handleAddChat(client, msg.Payload)
+	switch msg.Event {
+	case EventAddChat:
+		if isParticipant {
+			r.handleAddChat(client, msg.Event, msg.Payload)
 		}
 
-	case MessageType(EventDeleteChat):
-		if HasPermission(role, HasParticipantPermission()) {
-			r.handleDeleteChat(client, msg.Payload)
+	case EventDeleteChat:
+		if isParticipant {
+			r.handleDeleteChat(client, msg.Event, msg.Payload)
 		}
 
-	case MessageType(EventRecentsChat):
-		if HasPermission(role, HasParticipantPermission()) {
-			r.handleRecentsChat(client, msg.Payload)
+	case EventGetRecentChats:
+		if isParticipant {
+			r.handleGetRecentChats(client, msg.Event, msg.Payload)
 		}
 
-	case MessageType(EventRaiseHand):
-		if HasPermission(role, HasParticipantPermission()) {
-			r.handleRaiseHand(client, msg.Payload)
+	case EventRaiseHand:
+		if isParticipant {
+			r.handleRaiseHand(client, msg.Event, msg.Payload)
 		}
-	case MessageType(EventLowerHand):
-		if HasPermission(role, HasParticipantPermission()) {
-			r.handleLowerHand(client, msg.Payload)
-		}
-
-	case MessageType(EventRequestWaiting):
-		if HasPermission(role, HasWaitingPermission()) {
-			r.handleRequestWaiting(client, msg.Payload)
+	case EventLowerHand:
+		if isParticipant {
+			r.handleLowerHand(client, msg.Event, msg.Payload)
 		}
 
-	case MessageType(EventAcceptWaiting):
-		if HasPermission(role, HasHostPermission()) {
-			r.handleAcceptWaiting(msg.Payload)
+	case EventRequestWaiting:
+		if isWaiting {
+			r.handleRequestWaiting(client, msg.Event, msg.Payload)
 		}
 
-	case MessageType(EventDenyWaiting):
-		if HasPermission(role, HasHostPermission()) {
-			r.handleDenyWaiting(msg.Payload)
+	case EventAcceptWaiting:
+		if isHost {
+			r.handleAcceptWaiting(client, msg.Event, msg.Payload)
 		}
 
-	case MessageType(EventRequestScreenshare):
-		if (client.Role != RoleTypeScreenshare) &&
-			HasPermission(role, HasParticipantPermission()) {
-			r.handleRequestScreenshare(client, msg.Payload)
+	case EventDenyWaiting:
+		if isHost {
+			r.handleDenyWaiting(client, msg.Event, msg.Payload)
 		}
 
-	case MessageType(EventAcceptScreenshare):
-		if HasPermission(role, HasHostPermission()) {
-			r.handleAcceptScreenshare(client, msg.Payload)
+	case EventRequestScreenshare:
+		if (role != RoleTypeScreenshare) &&
+			isParticipant {
+			r.handleRequestScreenshare(client, msg.Event, msg.Payload)
 		}
 
-	case MessageType(EventDenyScreenshare):
-		if HasPermission(role, HasHostPermission()) {
-			r.handleDenyScreenshare(client, msg.Payload)
+	case EventAcceptScreenshare:
+		if isHost {
+			r.handleAcceptScreenshare(client, msg.Event, msg.Payload)
+		}
+
+	case EventDenyScreenshare:
+		if isHost {
+			r.handleDenyScreenshare(client, msg.Event, msg.Payload)
 		}
 
 	default:
-		slog.Warn("Received unknown message type", "type", msg.Type)
+		slog.Warn("Received unknown message event", "event", msg.Event)
 	}
 }
 
@@ -226,13 +226,8 @@ func (r *Room) router(client *Client, data any) {
 //   - payload: The payload of the message (any type).
 //   - roles:   Optional list of RoleType values. If provided, only clients with these roles
 //     will receive the message. If omitted, all clients receive the message.
-//
-// Example usage:
-//
-//	r.broadcast(MessageTypeChat, chatPayload) // Broadcast to all clients
-//	r.broadcast(MessageTypeUpdate, updatePayload, RoleTypeHost, RoleTypeParticipant) // Broadcast to hosts and participants
-func (r *Room) broadcast(MsgType MessageType, payload any, roles set.Set[RoleType]) {
-	msg := Message{Type: MsgType, Payload: payload}
+func (r *Room) broadcast(event Event, payload any, roles set.Set[RoleType]) {
+	msg := Message{Event: event, Payload: payload}
 	rawMsg, err := json.Marshal(msg)
 	if err != nil {
 		slog.Error("Failed to marshal broadcast message", "payload", payload, "error", err)
@@ -241,7 +236,7 @@ func (r *Room) broadcast(MsgType MessageType, payload any, roles set.Set[RoleTyp
 
 	if roles == nil {
 		// Send to all roles
-		for _, m := range []map[UserIDType]*Client{r.hosts, r.sharingScreen, r.participants, r.waiting} {
+		for _, m := range []map[ClientIdType]*Client{r.hosts, r.sharingScreen, r.participants, r.waiting} {
 			for _, p := range m {
 				select {
 				case p.send <- rawMsg:
@@ -277,10 +272,10 @@ func (r *Room) broadcast(MsgType MessageType, payload any, roles set.Set[RoleTyp
 	}
 }
 
-// clientsMapToSlice converts a map of UserIDType to *Client into a slice of *Client.
+// clientsMapToSlice converts a map of ClientIdType to *Client into a slice of *Client.
 // It iterates over the map and appends each client pointer to a new slice, which is then returned.
 // The order of clients in the resulting slice is not guaranteed.
-func clientsMapToSlice(m map[UserIDType]*Client) []*Client {
+func clientsMapToSlice(m map[ClientIdType]*Client) []*Client {
 	clients := make([]*Client, 0, len(m))
 	for _, c := range m {
 		clients = append(clients, c)

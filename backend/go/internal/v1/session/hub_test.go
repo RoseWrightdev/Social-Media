@@ -33,21 +33,21 @@ func NewTestHub(mockValidator TokenValidator) *Hub {
 
 func TestGetOrCreateRoom(t *testing.T) {
 	hub := NewTestHub(nil) // Use the default mock validator
-	var roomID RoomIDType = "test-room-1"
+	var roomId RoomIdType = "test-room-1"
 
 	// First call should create the room
-	room1 := hub.getOrCreateRoom(roomID)
+	room1 := hub.getOrCreateRoom(roomId)
 	require.NotNil(t, room1, "getOrCreateRoom should not return nil")
-	assert.Equal(t, roomID, room1.ID, "Room ID should match the one provided")
+	assert.Equal(t, roomId, room1.ID, "Room ID should match the one provided")
 
 	// Check internal state to be sure
 	hub.mu.Lock()
-	_, exists := hub.rooms[roomID]
+	_, exists := hub.rooms[roomId]
 	hub.mu.Unlock()
 	assert.True(t, exists, "Room should exist in the hub's map after creation")
 
 	// Second call should return the exact same room instance
-	room2 := hub.getOrCreateRoom(roomID)
+	room2 := hub.getOrCreateRoom(roomId)
 	assert.Same(t, room1, room2, "Subsequent calls with the same ID should return the same room instance")
 }
 
@@ -85,7 +85,7 @@ func TestServeWs_AuthFailure(t *testing.T) {
 
 func TestRemoveHub(t *testing.T) {
 	hub := NewTestHub(nil)
-	var testID RoomIDType = "test_room"
+	var testID RoomIdType = "test_room"
 	hub.rooms[testID] = NewTestRoom(testID, nil)
 	hub.removeRoom(testID)
 	assert.Empty(t, hub.rooms)

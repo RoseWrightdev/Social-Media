@@ -48,7 +48,7 @@ func (m *MockConn) ReadMessage() (int, []byte, error) {
 // WriteMessage simulates writing a message to a connection. It sends the provided data
 // to the WrittenMessages channel unless WriteError is set, in which case it returns the error.
 // This method is typically used in tests to mock WebSocket or similar message-based connections.
-func (m *MockConn) WriteMessage(messageType int, data []byte) error {
+func (m *MockConn) WriteMessage(Event int, data []byte) error {
 	if m.WriteError != nil {
 		return m.WriteError
 	}
@@ -101,19 +101,19 @@ func TestClient_readPump(t *testing.T) {
 	t.Run("should handle messages and pass to room", func(t *testing.T) {
 		mockConn := newMockConn()
 		mockRoom := newMockRoom()
-		client := &Client{conn: mockConn, room: mockRoom, UserID: "test-user"}
+		client := &Client{conn: mockConn, room: mockRoom, ID: "test-user"}
 
 		go client.readPump()
 
 		// Send a valid message
-		chatMsg := Message{Type: MessageType(EventAddChat), Payload: ChatMessagePayload{Content: "hello"}}
+		chatMsg := Message{Event: Event(EventAddChat), Payload: AddChatPayload{Content: "hello"}}
 		msgBytes, _ := json.Marshal(chatMsg)
 		mockConn.ReadMessages <- msgBytes
 
 		// Verify the room's router was called
 		select {
 		case handled := <-mockRoom.handledMessage:
-			assert.Equal(t, MessageType(EventAddChat), handled.Type)
+			assert.Equal(t, Event(EventAddChat), handled.Event)
 		case <-time.After(100 * time.Millisecond):
 			t.Fatal("timed out waiting for room to handle message")
 		}
@@ -133,7 +133,7 @@ func TestClient_readPump(t *testing.T) {
 		mockConn.ReadMessages <- []byte("{not_json}")
 
 		// Send a valid message afterwards to ensure the loop didn't break
-		chatMsg := Message{Type: MessageType(EventAddChat)}
+		chatMsg := Message{Event: Event(EventAddChat)}
 		msgBytes, _ := json.Marshal(chatMsg)
 		mockConn.ReadMessages <- msgBytes
 

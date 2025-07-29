@@ -12,34 +12,34 @@ import (
 )
 
 // newTestClient creates a client for testing purposes.
-func newTestClient(id UserIDType) *Client {
+func newTestClient(id ClientIdType) *Client {
 	return &Client{
-		UserID: id,
+		ID: id,
 		send:   make(chan []byte, 10), // Buffered channel to avoid blocking in tests
 	}
 }
 
 // NewTestRoom creates a new, stateful room for testing purposes.
 // Exported globally for use accross the codebase.
-func NewTestRoom(id RoomIDType, onEmptyCallback func(RoomIDType)) *Room {
+func NewTestRoom(id RoomIdType, onEmptyCallback func(RoomIdType)) *Room {
 	return &Room{
 		ID:                   id,
 		mu:                   sync.RWMutex{},
 		chatHistory:          list.New(),
 		maxChatHistoryLength: 10,
 
-		hosts:        make(map[UserIDType]*Client),
-		participants: make(map[UserIDType]*Client),
-		waiting:      make(map[UserIDType]*Client),
+		hosts:        make(map[ClientIdType]*Client),
+		participants: make(map[ClientIdType]*Client),
+		waiting:      make(map[ClientIdType]*Client),
 
 		waitingDrawOrderStack: list.New(),
 		clientDrawOrderQueue:  list.New(),
 		handDrawOrderQueue:    list.New(),
 
-		raisingHand:   make(map[UserIDType]*Client),
-		sharingScreen: make(map[UserIDType]*Client),
-		unmuted:       make(map[UserIDType]*Client),
-		cameraOn:      make(map[UserIDType]*Client),
+		raisingHand:   make(map[ClientIdType]*Client),
+		sharingScreen: make(map[ClientIdType]*Client),
+		unmuted:       make(map[ClientIdType]*Client),
+		cameraOn:      make(map[ClientIdType]*Client),
 
 		onEmpty: onEmptyCallback,
 	}

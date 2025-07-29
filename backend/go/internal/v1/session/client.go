@@ -25,12 +25,12 @@ type Roomer interface {
 }
 
 // Client represents a single connected user.
-// The combination of UserID, DisplayName, and Role is sufficient for all permission checks.
+// The combination of ClientId, DisplayName, and Role is sufficient for all permission checks.
 type Client struct {
 	conn             wsConnection
 	send             chan []byte
 	room             Roomer
-	UserID           UserIDType
+	ID           ClientIdType
 	DisplayName      DisplayNameType
 	Role             RoleType
 	drawOrderElement *list.Element
@@ -50,14 +50,14 @@ func (c *Client) readPump() {
 		_, rawMessage, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				slog.Warn("Unexpected client close", "userID", c.UserID, "error", err)
+				slog.Warn("Unexpected client close", "ClientId", c.ID, "error", err)
 			}
 			break
 		}
 
 		var msg Message
 		if err := json.Unmarshal(rawMessage, &msg); err != nil {
-			slog.Warn("Failed to unmarshal message", "userID", c.UserID, "error", err)
+			slog.Warn("Failed to unmarshal message", "ClientId", c.ID, "error", err)
 			continue
 		}
 
