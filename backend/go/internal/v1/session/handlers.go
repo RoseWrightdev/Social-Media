@@ -4,6 +4,13 @@ import "log/slog"
 
 
 func (r *Room) handleAddChat(client *Client, event Event, payload any) {
+	p, ok := assertPayload[AddChatPayload](payload)
+    logHelper(ok, client.ID, "handleAddChat", r.ID)
+    if !ok {
+        return
+    }
+	r.addChat(p)
+	r.broadcast(event, p, HasParticipantPermission())
 
 }
 
@@ -61,4 +68,9 @@ func logHelper(ok bool, ClientId ClientIdType, methodName string, RoomId RoomIdT
 			"methodName", methodName,
 		)
 	}
+}
+
+func assertPayload[T any](payload any) (T, bool) {
+    p, ok := payload.(T)
+    return p, ok
 }

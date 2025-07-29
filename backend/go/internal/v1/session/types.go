@@ -18,7 +18,7 @@ type Event string
 
 
 type ClientInfo struct {
-	ClientId      ClientIdType      `json:"clientId"`
+	ClientId    ClientIdType    `json:"clientId"`
 	DisplayName DisplayNameType `json:"displayName"`
 }
 
@@ -30,7 +30,6 @@ type ChatInfo struct {
 }
 
 
-
 // This enum is the single source of truth for a client's role.
 const (
 	RoleTypeWaiting     RoleType = "waiting"
@@ -38,7 +37,6 @@ const (
 	RoleTypeScreenshare RoleType = "screenshare"
 	RoleTypeHost        RoleType = "host"
 )
-
 
 
 const (
