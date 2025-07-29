@@ -5,13 +5,12 @@ import "log/slog"
 
 func (r *Room) handleAddChat(client *Client, event Event, payload any) {
 	p, ok := assertPayload[AddChatPayload](payload)
-    logHelper(ok, client.ID, "handleAddChat", r.ID)
+    logHelper(ok, client.ID, GetFuncName(), r.ID)
     if !ok {
         return
     }
 	r.addChat(p)
 	r.broadcast(event, p, HasParticipantPermission())
-
 }
 
 func (r *Room) handleDeleteChat(client *Client, event Event, payload any) {

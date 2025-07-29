@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 )
 
@@ -17,4 +18,9 @@ func GetAllowedOriginsFromEnv(envVarName string, defaultEnvs []string) []string 
 		return defaultEnvs
 	}
 	return strings.Split(originsStr, ",")
+}
+
+func GetFuncName() string {
+	pc, _, _, _ := runtime.Caller(1)
+	return fmt.Sprintf("%s", runtime.FuncForPC(pc).Name())
 }
