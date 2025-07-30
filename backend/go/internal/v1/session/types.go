@@ -94,6 +94,12 @@ const (
 	EventRequestScreenshare Event = "request_screenshare" // Request permission to share screen
 	EventAcceptScreenshare  Event = "accept_screenshare"  // Host grants screen sharing permission
 	EventDenyScreenshare    Event = "deny_screenshare"    // Host denies screen sharing permission
+
+	// WebRTC signaling events for peer-to-peer connection establishment
+	EventOffer       Event = "offer"       // WebRTC offer for establishing peer connection
+	EventAnswer      Event = "answer"      // WebRTC answer responding to an offer
+	EventCandidate   Event = "candidate"   // ICE candidate for connectivity establishment
+	EventRenegotiate Event = "renegotiate" // Request to renegotiate connection (for adding/removing streams)
 )
 
 // Message is the top-level structure for all WebSocket communication.
@@ -183,3 +189,42 @@ func (c ChatInfo) Validate() error {
 type AddChatPayload = ChatInfo        // Payload for adding a new chat message
 type DeleteChatPayload = ChatInfo     // Payload for deleting an existing message
 type GetRecentChatsPayload = ChatInfo // Payload for requesting recent chat history
+
+// --- WebRTC Signaling Payloads ---
+
+// WebRTCOfferPayload contains the SDP offer for establishing a peer-to-peer connection.
+// This is sent by the initiating peer to start the WebRTC negotiation process.
+type WebRTCOfferPayload struct {
+	ClientInfo                  // Information about the client sending the offer
+	TargetClientId ClientIdType `json:"targetClientId"` // ID of the client to establish connection with
+	SDP            string       `json:"sdp"`            // Session Description Protocol offer
+	Type           string       `json:"type"`           // Always "offer" for offer payloads
+}
+
+// WebRTCAnswerPayload contains the SDP answer responding to a WebRTC offer.
+// This is sent by the receiving peer to complete the initial connection handshake.
+type WebRTCAnswerPayload struct {
+	ClientInfo                  // Information about the client sending the answer
+	TargetClientId ClientIdType `json:"targetClientId"` // ID of the client who sent the original offer
+	SDP            string       `json:"sdp"`            // Session Description Protocol answer
+	Type           string       `json:"type"`           // Always "answer" for answer payloads
+}
+
+// WebRTCCandidatePayload contains ICE candidate information for connectivity.
+// These are exchanged throughout the connection process to find the best path
+// for peer-to-peer communication (handling NAT traversal, firewalls, etc.).
+type WebRTCCandidatePayload struct {
+	ClientInfo                  // Information about the client sending the candidate
+	TargetClientId ClientIdType `json:"targetClientId"` // ID of the client to send candidate to
+	Candidate      string       `json:"candidate"`      // ICE candidate string
+	SDPMid         *string      `json:"sdpMid"`         // Media stream identification
+	SDPMLineIndex  *int         `json:"sdpMLineIndex"`  // Media line index in SDP
+}
+
+// WebRTCRenegotiatePayload signals the need to renegotiate the peer connection.
+// This is used when streams are added/removed (e.g., turning camera on/off, screen sharing).
+type WebRTCRenegotiatePayload struct {
+	ClientInfo                  // Information about the client requesting renegotiation
+	TargetClientId ClientIdType `json:"targetClientId"` // ID of the client to renegotiate with
+	Reason         string       `json:"reason"`         // Reason for renegotiation (optional, for debugging)
+}

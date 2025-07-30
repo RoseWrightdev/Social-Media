@@ -53,7 +53,7 @@ func main() {
 	router.Use(cors.New(config))
 
 	// Error handling
-	router.Use(gin.Recovery()) 
+	router.Use(gin.Recovery())
 
 	// Routing
 	wsGroup := router.Group("/ws")
@@ -64,11 +64,6 @@ func main() {
 	}
 
 	// Start the server.
-	slog.Info("API server starting on :8080")
-	if err := router.Run(":8080"); err != nil {
-		slog.Error("Failed to run server", "error", err)
-	}
-
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: router,
@@ -99,4 +94,3 @@ func main() {
 
 	slog.Info("Server exiting")
 }
-

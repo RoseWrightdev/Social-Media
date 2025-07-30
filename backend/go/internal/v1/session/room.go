@@ -258,6 +258,27 @@ func (r *Room) router(client *Client, data any) {
 			r.handleDenyScreenshare(client, msg.Event, msg.Payload)
 		}
 
+	// WebRTC signaling events - available to participants and hosts
+	case EventOffer:
+		if isParticipant || isHost {
+			r.handleWebRTCOffer(client, msg.Event, msg.Payload)
+		}
+
+	case EventAnswer:
+		if isParticipant || isHost {
+			r.handleWebRTCAnswer(client, msg.Event, msg.Payload)
+		}
+
+	case EventCandidate:
+		if isParticipant || isHost {
+			r.handleWebRTCCandidate(client, msg.Event, msg.Payload)
+		}
+
+	case EventRenegotiate:
+		if isParticipant || isHost {
+			r.handleWebRTCRenegotiate(client, msg.Event, msg.Payload)
+		}
+
 	default:
 		slog.Warn("Received unknown message event", "event", msg.Event)
 	}
