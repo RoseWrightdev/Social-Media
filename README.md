@@ -77,6 +77,16 @@ Hierarchical role-based access control:
 - **Dynamic renegotiation** for stream management
 - **Cross-browser compatibility** with modern WebRTC APIs
 
+## 🎨 UI Designs
+
+The full set of designs is available on my [Figma account](https://www.figma.com/design/7uD81ikYXdkFDPeAWfXRl8/Social-Media----Comms?node-id=41-2&t=lxks1c13fWrUnXKb-0).
+
+![UI Shown Talking](https://github.com/user-attachments/assets/af9924f4-9724-4bc3-8b6f-cf4feac0755f)
+
+![Chat Participants](https://github.com/user-attachments/assets/1354c553-7088-404d-851e-29c9c52f201b)
+
+![UI Shown No Camera Talking](https://github.com/user-attachments/assets/4da5e28a-40dc-4d57-a886-259692388859)
+
 ## 📋 API Documentation
 
 The platform provides comprehensive WebSocket APIs for:
@@ -248,12 +258,4 @@ The platform includes comprehensive testing:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🎨 UI Designs
 
-The full set of designs is available on my [Figma account](https://www.figma.com/design/7uD81ikYXdkFDPeAWfXRl8/Social-Media----Comms?node-id=41-2&t=lxks1c13fWrUnXKb-0).
-
-![UI Shown Talking](https://github.com/user-attachments/assets/af9924f4-9724-4bc3-8b6f-cf4feac0755f)
-
-![Chat Participants](https://github.com/user-attachments/assets/1354c553-7088-404d-851e-29c9c52f201b)
-
-![UI Shown No Camera Talking](https://github.com/user-attachments/assets/4da5e28a-40dc-4d57-a886-259692388859)
