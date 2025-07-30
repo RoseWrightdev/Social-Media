@@ -197,7 +197,7 @@ func (r *Room) handleGetRecentChats(client *Client, event Event, payload any) {
 	recentChats := r.getRecentChats(p)
 
 	// Send the recent chats directly to the requesting client
-	if msg, err := json.Marshal(Message{Event: event, Payload: recentChats}); err == nil {
+	if msg, err := json.Marshal(Message{Event: EventGetRecentChats, Payload: recentChats}); err == nil {
 		select {
 		case client.send <- msg:
 		default:
