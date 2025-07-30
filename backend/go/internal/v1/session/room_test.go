@@ -1,7 +1,21 @@
+// Package session - room_test.go
+//
+// This file contains unit tests for the Room struct and its associated methods.
+// The test suite covers room state management, client operations, and concurrent
+// access scenarios to ensure thread safety and correctness.
+//
+// Test Categories:
+//   - Room creation and initialization
+//   - Client management (add, remove, role changes)
+//   - State validation and consistency
+//   - Concurrent access and thread safety
+//   - Broadcasting and communication
+//
+// Testing Philosophy:
+// These tests focus on the core business logic of room management while
+// using mock implementations for external dependencies like WebSocket
+// connections and authentication.
 package session
-
-// todo: rewrite test suite
-// todo: write file level comment
 
 import (
 	"container/list"
