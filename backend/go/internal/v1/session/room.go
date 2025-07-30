@@ -88,10 +88,18 @@ func (r *Room) handleClientDisconnect(client *Client) {
 	// Check if room is empty AFTER broadcasting
 	if r.isRoomEmpty() {
 		if r.onEmpty == nil {
-			panic("onEmpty callback not defined. This will cause a memory leak.")
+			slog.Error("onEmpty callback not defined. This will cause a memory leak.", "RoomId", r.ID)
+			return
 		}
 		// Run in a goroutine to avoid potential deadlocks
-		go r.onEmpty(r.ID)
+		go func() {
+			defer func() {
+				if recover() != nil {
+					slog.Error("Panic in onEmpty callback", "RoomId", r.ID)
+				}
+			}()
+			r.onEmpty(r.ID)
+		}()
 	}
 }
 
@@ -107,7 +115,9 @@ func (r *Room) handleClientDisconnect(client *Client) {
 //   - A pointer to the newly created Room.
 func NewRoom(id RoomIdType, onEmptyCallback func(RoomIdType)) *Room {
 	return &Room{
-		ID: id,
+		ID:                   id,
+		chatHistory:          list.New(),
+		maxChatHistoryLength: 100, // Default to 100 messages
 
 		hosts:        make(map[ClientIdType]*Client),
 		participants: make(map[ClientIdType]*Client),
@@ -207,25 +217,8 @@ func (r *Room) router(client *Client, data any) {
 	}
 }
 
-// broadcast sends a message of the specified MsgType and payload to clients in the room.
-//
-// If a client's send channel is full, the message is dropped for that client to prevent blocking.
-// Any errors during marshaling are logged, and the broadcast is aborted.
-// broadcast sends a message of the specified type and payload to clients in the room.
-// The message can be broadcast to all clients or restricted to specific roles.
-//
-// If no roles are provided, the message is sent to all clients in the room, including hosts,
-// screen sharers, participants, and waiting users. If one or more roles are specified, the
-// message is sent only to clients matching those roles.
-//
-// The function marshals the message to JSON and sends it to each client's send channel.
-// To prevent a slow client from blocking the broadcast, the send operation is non-blocking.
-//
-// Params:
-//   - MsgType: The type of the message to broadcast (MessageType).
-//   - payload: The payload of the message (any type).
-//   - roles:   Optional list of RoleType values. If provided, only clients with these roles
-//     will receive the message. If omitted, all clients receive the message.
+// broadcast sends a message of the specified event and payload to clients in the room.
+// This method assumes the caller already holds the appropriate lock.
 func (r *Room) broadcast(event Event, payload any, roles set.Set[RoleType]) {
 	msg := Message{Event: event, Payload: payload}
 	rawMsg, err := json.Marshal(msg)
@@ -283,7 +276,60 @@ func clientsMapToSlice(m map[ClientIdType]*Client) []*Client {
 	return clients
 }
 
-// todo: unimpl
-func (r *Room) getRoomState() {
-	panic("unimpl")
+// getRoomState returns the current state of the room including all participants, hosts, etc.
+// This method is thread-safe and can be called concurrently.
+func (r *Room) getRoomState() RoomStatePayload {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// Convert client maps to slices of ClientInfo
+	hosts := make([]ClientInfo, 0, len(r.hosts))
+	for _, client := range r.hosts {
+		hosts = append(hosts, ClientInfo{
+			ClientId:    client.ID,
+			DisplayName: client.DisplayName,
+		})
+	}
+
+	participants := make([]ClientInfo, 0, len(r.participants))
+	for _, client := range r.participants {
+		participants = append(participants, ClientInfo{
+			ClientId:    client.ID,
+			DisplayName: client.DisplayName,
+		})
+	}
+
+	waitingUsers := make([]ClientInfo, 0, len(r.waiting))
+	for _, client := range r.waiting {
+		waitingUsers = append(waitingUsers, ClientInfo{
+			ClientId:    client.ID,
+			DisplayName: client.DisplayName,
+		})
+	}
+
+	handsRaised := make([]ClientInfo, 0, len(r.raisingHand))
+	for _, client := range r.raisingHand {
+		handsRaised = append(handsRaised, ClientInfo{
+			ClientId:    client.ID,
+			DisplayName: client.DisplayName,
+		})
+	}
+
+	sharingScreen := make([]ClientInfo, 0, len(r.sharingScreen))
+	for _, client := range r.sharingScreen {
+		sharingScreen = append(sharingScreen, ClientInfo{
+			ClientId:    client.ID,
+			DisplayName: client.DisplayName,
+		})
+	}
+
+	return RoomStatePayload{
+		ClientInfo:    ClientInfo{}, // This will be set by the caller if needed
+		RoomID:        r.ID,
+		Hosts:         hosts,
+		Participants:  participants,
+		HandsRaised:   handsRaised,
+		WaitingUsers:  waitingUsers,
+		SharingScreen: sharingScreen,
+	}
 }
