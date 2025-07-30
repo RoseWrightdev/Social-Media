@@ -248,7 +248,7 @@ The platform includes comprehensive testing:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🎨 UI Screenshots
+## 🎨 UI Designs
 
 The full set of designs is available on my [Figma account](https://www.figma.com/design/7uD81ikYXdkFDPeAWfXRl8/Social-Media----Comms?node-id=41-2&t=lxks1c13fWrUnXKb-0).
 
