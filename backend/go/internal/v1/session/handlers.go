@@ -208,6 +208,31 @@ func (r *Room) handleGetRecentChats(client *Client, event Event, payload any) {
 	}
 }
 
+// handleRaiseHand processes requests for participants to raise their hands.
+// This handler allows participants to signal that they want to speak or
+// ask a question during the meeting.
+//
+// Operation Flow:
+//  1. Validate payload structure
+//  2. Add client to the hand-raising queue
+//  3. Broadcast the event to all participants
+//
+// Queue Management:
+// The hand-raising system maintains an ordered queue so hosts can see
+// who raised their hand first and manage speaking order appropriately.
+//
+// Permissions:
+// Only participants and above can raise hands. Waiting room users
+// cannot raise hands until they are admitted to the meeting.
+//
+// Broadcasting:
+// The event is broadcast to all participants so everyone can see
+// who has their hand raised and maintain meeting awareness.
+//
+// Parameters:
+//   - client: The client raising their hand
+//   - event: The event type (should be EventRaiseHand)
+//   - payload: The raw payload containing hand raise information
 func (r *Room) handleRaiseHand(client *Client, event Event, payload any) {
 	p, ok := assertPayload[RaiseHandPayload](payload)
 	logHelper(ok, client.ID, GetFuncName(), r.ID)
@@ -218,6 +243,31 @@ func (r *Room) handleRaiseHand(client *Client, event Event, payload any) {
 	r.broadcast(event, p, HasParticipantPermission())
 }
 
+// handleLowerHand processes requests for participants to lower their hands.
+// This handler allows participants to withdraw their request to speak,
+// removing them from the hand-raising queue.
+//
+// Use Cases:
+//   - Participant no longer wants to speak
+//   - Host has already acknowledged the participant
+//   - Participant wants to yield their turn to others
+//
+// Queue Management:
+// When a participant lowers their hand, they are removed from the
+// hand-raising queue, potentially changing the order for remaining participants.
+//
+// Permissions:
+// Only participants and above can lower hands. This matches the raise hand
+// permissions to ensure consistent hand management capabilities.
+//
+// Broadcasting:
+// The event is broadcast to all participants so everyone can see
+// the updated hand-raising status and queue order.
+//
+// Parameters:
+//   - client: The client lowering their hand
+//   - event: The event type (should be EventLowerHand)
+//   - payload: The raw payload containing hand lower information
 func (r *Room) handleLowerHand(client *Client, event Event, payload any) {
 	p, ok := assertPayload[LowerHandPayload](payload)
 	logHelper(ok, client.ID, GetFuncName(), r.ID)
@@ -228,6 +278,34 @@ func (r *Room) handleLowerHand(client *Client, event Event, payload any) {
 	r.broadcast(event, p, HasParticipantPermission())
 }
 
+// handleRequestWaiting processes requests from clients to join the waiting room.
+// This handler is typically called by clients who are not yet admitted to
+// the main meeting and need host approval to participate.
+//
+// Waiting Room Flow:
+//  1. Client requests to join the waiting room
+//  2. Request is broadcast to hosts for approval
+//  3. Hosts can then accept or deny the waiting request
+//
+// Security Model:
+// The waiting room provides a security layer where hosts can control
+// who joins the meeting, preventing unauthorized participants and
+// enabling moderated meetings.
+//
+// Broadcasting:
+// The request is broadcast only to hosts, as they are the only ones
+// who can approve or deny waiting room requests. Regular participants
+// don't need to see these requests.
+//
+// Use Cases:
+//   - New clients joining a moderated meeting
+//   - Clients who were temporarily disconnected
+//   - Late-arriving invited participants
+//
+// Parameters:
+//   - client: The client requesting to join the waiting room
+//   - event: The event type (should be EventRequestWaiting)
+//   - payload: The raw payload containing waiting request information
 func (r *Room) handleRequestWaiting(client *Client, event Event, payload any) {
 	p, ok := assertPayload[RequestWaitingPayload](payload)
 	logHelper(ok, client.ID, GetFuncName(), r.ID)
@@ -237,6 +315,38 @@ func (r *Room) handleRequestWaiting(client *Client, event Event, payload any) {
 	r.broadcast(event, p, HasHostPermission())
 }
 
+// handleAcceptWaiting processes host decisions to accept clients from the waiting room.
+// This handler promotes waiting clients to full participants, granting them
+// access to the main meeting features.
+//
+// Security Validation:
+//  1. Verify the target client is actually in the waiting room
+//  2. Prevent acceptance of non-existent or already-accepted clients
+//  3. Log all acceptance actions for audit purposes
+//
+// State Transitions:
+// When a client is accepted:
+//   - Removed from waiting room map
+//   - Added to participants map
+//   - Role changed to participant
+//   - Full meeting features become available
+//
+// Host Authority:
+// Only hosts can accept waiting clients, maintaining meeting control
+// and preventing unauthorized admissions by regular participants.
+//
+// Broadcasting:
+// The acceptance is broadcast to all clients (nil permission set)
+// so everyone can see the new participant join the meeting.
+//
+// Error Handling:
+// If the target client doesn't exist in the waiting room, the request
+// is logged as a warning and ignored to prevent security issues.
+//
+// Parameters:
+//   - client: The host accepting the waiting client
+//   - event: The event type (should be EventAcceptWaiting)
+//   - payload: The raw payload containing the client ID to accept
 func (r *Room) handleAcceptWaiting(client *Client, event Event, payload any) {
 	p, ok := assertPayload[AcceptWaitingPayload](payload)
 	logHelper(ok, client.ID, GetFuncName(), r.ID)
@@ -259,6 +369,37 @@ func (r *Room) handleAcceptWaiting(client *Client, event Event, payload any) {
 	r.broadcast(event, p, nil)
 }
 
+// handleDenyWaiting processes host decisions to deny clients from the waiting room.
+// This handler removes clients from the waiting room without granting them
+// participant access, effectively rejecting their request to join.
+//
+// Operation Flow:
+//  1. Validate the denial request payload
+//  2. Find the target client in the waiting room
+//  3. Remove them from the waiting room if found
+//  4. Broadcast the denial to waiting room participants
+//
+// Client Removal:
+// When a client is denied, they are completely removed from the waiting
+// room and must make a new request if they want to try joining again.
+//
+// Host Authority:
+// Only hosts can deny waiting clients, maintaining control over meeting
+// access and preventing abuse by regular participants.
+//
+// Broadcasting:
+// The denial is broadcast to clients with waiting permissions so they
+// can update their UI to reflect the client's removal from the queue.
+//
+// Use Cases:
+//   - Rejecting uninvited or unauthorized participants
+//   - Managing meeting size and participation
+//   - Removing disruptive or inappropriate requests
+//
+// Parameters:
+//   - client: The host denying the waiting client
+//   - event: The event type (should be EventDenyWaiting)
+//   - payload: The raw payload containing the client ID to deny
 func (r *Room) handleDenyWaiting(client *Client, event Event, payload any) {
 	p, ok := assertPayload[DenyWaitingPayload](payload)
 	logHelper(ok, client.ID, GetFuncName(), r.ID)
@@ -280,6 +421,36 @@ func (r *Room) handleDenyWaiting(client *Client, event Event, payload any) {
 	r.broadcast(event, p, HasWaitingPermission())
 }
 
+// handleRequestScreenshare processes participant requests to share their screen.
+// This handler forwards screenshare requests to hosts who can approve or
+// deny the request based on meeting policies and current conditions.
+//
+// Request Flow:
+//  1. Participant requests permission to share screen
+//  2. Request is broadcast to hosts for approval
+//  3. Hosts can accept or deny the screenshare request
+//
+// Permission Model:
+// Screensharing typically requires host approval to:
+//   - Prevent unauthorized screen sharing
+//   - Manage meeting flow and focus
+//   - Ensure appropriate content is shared
+//
+// Broadcasting:
+// The request is broadcast only to hosts, as they are the decision-makers
+// for screenshare approvals. Regular participants don't need to see
+// these requests unless they become hosts.
+//
+// Use Cases:
+//   - Presentations during meetings
+//   - Collaborative work sessions
+//   - Technical support or training scenarios
+//   - Sharing documents or applications
+//
+// Parameters:
+//   - client: The participant requesting to share screen
+//   - event: The event type (should be EventRequestScreenshare)
+//   - payload: The raw payload containing screenshare request information
 func (r *Room) handleRequestScreenshare(client *Client, event Event, payload any) {
 	p, ok := assertPayload[RequestScreensharePayload](payload)
 	logHelper(ok, client.ID, GetFuncName(), r.ID)
@@ -289,6 +460,38 @@ func (r *Room) handleRequestScreenshare(client *Client, event Event, payload any
 	r.broadcast(event, p, HasHostPermission())
 }
 
+// handleAcceptScreenshare processes host decisions to approve screenshare requests.
+// This handler grants screenshare permissions to the requesting participant
+// and notifies them directly of the approval.
+//
+// Operation Flow:
+//  1. Validate the acceptance payload
+//  2. Find the requesting participant in the room
+//  3. Grant them screenshare permissions if found
+//  4. Send direct notification to the approved participant
+//
+// Direct Notification:
+// Unlike other handlers that broadcast to groups, this handler sends
+// the approval message directly to the requesting participant's WebSocket
+// connection to provide immediate feedback.
+//
+// State Management:
+// When screenshare is accepted, the participant is added to the
+// screenshare role, granting them elevated permissions for screen sharing.
+//
+// Error Handling:
+//   - JSON marshalling errors are logged but don't crash the handler
+//   - Non-existent participants are handled gracefully
+//   - Channel send failures are managed with direct channel operations
+//
+// Security:
+// Only the specific requesting participant receives the acceptance
+// notification, preventing unauthorized screenshare activations.
+//
+// Parameters:
+//   - client: The host accepting the screenshare request
+//   - event: The event type (should be EventAcceptScreenshare)
+//   - payload: The raw payload containing the participant ID to approve
 func (r *Room) handleAcceptScreenshare(client *Client, event Event, payload any) {
 	p, ok := assertPayload[AcceptScreensharePayload](payload)
 	logHelper(ok, client.ID, GetFuncName(), r.ID)
@@ -317,6 +520,39 @@ func (r *Room) handleAcceptScreenshare(client *Client, event Event, payload any)
 	}
 }
 
+// handleDenyScreenshare processes host decisions to deny screenshare requests.
+// This handler rejects the participant's request to share their screen
+// and notifies them directly of the denial.
+//
+// Operation Flow:
+//  1. Validate the denial payload
+//  2. Find the requesting participant to notify them
+//  3. Send direct denial notification to the participant
+//  4. Broadcast the denial decision to hosts
+//
+// Dual Notification Pattern:
+// This handler implements a dual notification system:
+//   - Direct message to the denied participant (immediate feedback)
+//   - Broadcast to hosts (awareness of the denial decision)
+//
+// User Experience:
+// The direct notification ensures the requesting participant receives
+// immediate feedback about their denial, preventing them from waiting
+// indefinitely for a response.
+//
+// Error Handling:
+//   - JSON marshalling errors are logged but don't prevent the broadcast
+//   - Non-existent participants are handled gracefully in the loop
+//   - Channel send operations use direct sends for immediate delivery
+//
+// Host Awareness:
+// The broadcast to hosts ensures all meeting moderators are aware
+// of denial decisions for coordination and meeting management.
+//
+// Parameters:
+//   - client: The host denying the screenshare request
+//   - event: The event type (should be EventDenyScreenshare)
+//   - payload: The raw payload containing the participant ID to deny
 func (r *Room) handleDenyScreenshare(client *Client, event Event, payload any) {
 	p, ok := assertPayload[DenyScreensharePayload](payload)
 	logHelper(ok, client.ID, GetFuncName(), r.ID)
