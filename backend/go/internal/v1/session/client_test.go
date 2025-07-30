@@ -91,9 +91,12 @@ func (m *MockRoom) router(c *Client, data any) {
 	m.handledMessage <- data.(Message)
 }
 
-// handleClientDisconnect is added to satisfy the Roomer interface.
+// handleClientDisconnect is called when a client disconnects; it notifies the test via channel.
 func (m *MockRoom) handleClientDisconnect(c *Client) {
-	// For testing, you can leave this empty or log if needed.
+	select {
+	case m.clientLeftCalled <- c:
+	default:
+	}
 }
 
 // --- Tests ---
@@ -106,7 +109,7 @@ func TestClient_readPump(t *testing.T) {
 		go client.readPump()
 
 		// Send a valid message
-		chatMsg := Message{Event: Event(EventAddChat), Payload: AddChatPayload{Content: "hello"}}
+		chatMsg := Message{Event: Event(EventAddChat), Payload: AddChatPayload{ChatContent: "hello"}}
 		msgBytes, _ := json.Marshal(chatMsg)
 		mockConn.ReadMessages <- msgBytes
 
