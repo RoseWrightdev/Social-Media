@@ -234,7 +234,7 @@ The platform includes production-ready configurations:
 
 The platform includes comprehensive testing:
 
-- **Backend**: 95%+ test coverage with unit and integration tests
+- **Backend**: 90%+ test coverage with unit and integration tests
 - **Frontend**: Component testing with Jest and React Testing Library
 - **E2E**: Full user flow testing with Cypress
 - **WebRTC**: Specialized tests for signaling and connection establishment
