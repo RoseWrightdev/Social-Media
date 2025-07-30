@@ -14,9 +14,9 @@ RUN go mod download
 COPY . .
 
 # Build the application.
-# This command assumes your main.go file is in a directory like ./cmd/v1/signaling
+# This command builds the session service from ./cmd/v1/session
 # The output binary will be placed at /app/main
-RUN go build -o /app/main ./cmd/v1/signaling
+RUN go build -o /app/main ./cmd/v1/session
 
 # --- Stage 2: Final Image ---
 # Use a minimal base image for the final container.
