@@ -9,50 +9,96 @@ import (
 	"k8s.io/utils/set"
 )
 
-// Room now manages the state for a meeting session.
+// Room represents a video conference session and manages all associated state.
+// Each room maintains participant lists, chat history, permissions, and real-time
+// communication channels. Rooms are created dynamically when the first client connects
+// and are cleaned up when the last participant leaves.
+//
+// Concurrency Design:
+// Room uses a read-write mutex (sync.RWMutex) to ensure thread-safe access to all state.
+// The locking strategy centralizes mutex acquisition in the router method, with all
+// other methods assuming the lock is already held. This prevents deadlocks and
+// ensures consistent state updates.
+//
+// State Management:
+// The Room maintains several categories of state:
+//   - Role-based maps: hosts, participants, waiting users
+//   - Activity states: raising hand, screen sharing, audio/video status
+//   - Ordering queues: draw order for UI positioning, hand-raise queue for fairness
+//   - Chat history: persistent message storage with configurable limits
+//
+// Memory Management:
+// The room includes automatic cleanup mechanisms:
+//   - Chat history limits prevent unbounded growth
+//   - Client disconnection removes all references
+//   - Empty room detection triggers cleanup callbacks
+
 type Room struct {
-	// --- global state ---
+	// --- Core Identity and Configuration ---
+	ID                   RoomIdType   // Unique identifier for this room
+	mu                   sync.RWMutex // Read-write mutex for thread safety
+	chatHistory          *list.List   // Chronologically ordered chat messages
+	maxChatHistoryLength int          // Maximum number of chat messages to retain
 
-	ID                   RoomIdType   // The room ID
-	mu                   sync.RWMutex // conn sync
-	chatHistory          *list.List   // The chat history
-	maxChatHistoryLength int          // Max length
+	// --- Role-Based Client Management ---
+	// These maps define the permission hierarchy within the room
+	hosts        map[ClientIdType]*Client // Clients with administrative privileges
+	participants map[ClientIdType]*Client // Active meeting participants
+	waiting      map[ClientIdType]*Client // Clients awaiting host approval
 
-	// --- Permission State Management ---
+	// --- User Interface Draw Order Management ---
+	// These data structures control the visual ordering of clients in the UI
 
-	hosts        map[ClientIdType]*Client // Clients with host privileges
-	participants map[ClientIdType]*Client // Clients who are in the main meeting
-	waiting      map[ClientIdType]*Client // Clients waiting for admission
-
-	// --- Draw Orders ---
-
-	// The draw is a list implementation of a stack.
-	// Each time a new client enters the waiting room push to the top of the stack.
-	// anytime a host admits a Client pop that from the n pos at the stack to the top of the stack.
+	// Waiting room uses LIFO (Last In, First Out) ordering - newest requests appear first
+	// This helps hosts notice new join requests immediately
 	waitingDrawOrderStack *list.List
 
-	// The draw is a list implementation of a queue.
-	// As participants join they are added to the back of the queue.
-	// As particpants speak they are popped to the front of the queue.
-	// When clients leave they are removed from the queue at their current position.
-	clientDrawOrderQueue *list.List // stores *Client elements
-	// As new clients raise their hands add to back of the queue
-	handDrawOrderQueue *list.List // stores *Client elements
+	// Main participant view uses queue ordering for consistent positioning
+	// Participants are added to the back and can be moved to front when speaking
+	clientDrawOrderQueue *list.List // stores *Client elements for main view
 
-	// --- Client State management ---
+	// Hand-raise queue uses FIFO (First In, First Out) for fairness
+	// Ensures participants get speaking opportunities in the order they requested
+	handDrawOrderQueue *list.List // stores *Client elements for hand-raising order
 
-	raisingHand   map[ClientIdType]*Client // Participants with their hand raised
+	// --- Real-Time Activity State ---
+	// These maps track current participant activities for UI indicators and permissions
+	raisingHand   map[ClientIdType]*Client // Participants requesting to speak
 	sharingScreen map[ClientIdType]*Client // Participants currently sharing their screen
-	unmuted       map[ClientIdType]*Client // Participants currently unmuted
-	cameraOn      map[ClientIdType]*Client // Perticipants currented with their camera on
+	unmuted       map[ClientIdType]*Client // Participants with microphone enabled
+	cameraOn      map[ClientIdType]*Client // Participants with camera enabled
 
-	// onEmpty is the callback function to call when the room has no more participants.
+	// --- Lifecycle Management ---
+	// Callback function invoked when the room becomes empty to trigger cleanup
 	onEmpty func(RoomIdType)
 }
 
-// handleClientJoined manages the logic for when a client joins the room.
-// If the room has no participants or hosts, the first client becomes the host and is admitted immediately.
-// Otherwise, the client is placed in the waiting room and hosts are notified.
+// handleClientConnect manages the initial connection logic when a client joins the room.
+// This method implements the room's admission policy and determines the client's initial role.
+//
+// Admission Logic:
+//   - First client to join an empty room automatically becomes the host
+//   - All subsequent clients are placed in the waiting room for host approval
+//   - This ensures every room has at least one administrator
+//
+// Concurrency Safety:
+// This method acquires the room's write lock to ensure thread-safe state updates
+// during the critical client admission process.
+//
+// Role Assignment:
+// The first client receives immediate host privileges, allowing them to:
+//   - Accept or deny future participants
+//   - Manage screen sharing permissions
+//   - Administrative control over room settings
+//
+// Waiting Room Behavior:
+// Non-host clients are placed in waiting status where they:
+//   - Cannot participate in the main meeting
+//   - Wait for host approval to join
+//   - May be denied access by the host
+//
+// Parameters:
+//   - client: The newly connected client to be processed
 func (r *Room) handleClientConnect(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -1,3 +1,24 @@
+// Package session - hub.go
+//
+// This file implements the Hub, which serves as the central coordinator for all
+// video conference rooms in the system. The Hub manages room lifecycle, handles
+// WebSocket upgrades, and provides authentication for incoming connections.
+//
+// Hub Responsibilities:
+//   - WebSocket connection upgrades and authentication
+//   - Room creation, retrieval, and cleanup
+//   - JWT token validation for security
+//   - Resource management across multiple concurrent rooms
+//
+// Scaling Design:
+// The Hub is designed to handle multiple rooms concurrently with proper
+// synchronization. Each room operates independently while the Hub coordinates
+// their lifecycle and provides shared services like authentication.
+//
+// Security Features:
+//   - JWT token validation for all connections
+//   - Secure WebSocket upgrade process
+//   - Protection against unauthorized access
 package session
 
 import (
@@ -12,16 +33,51 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// TokenValidator defines the interface for a JWT validator.
+// TokenValidator defines the interface for JWT token authentication services.
+// This abstraction allows the Hub to work with different authentication providers
+// while maintaining a consistent interface for token validation.
+//
+// The interface supports:
+//   - Token string validation and parsing
+//   - Extraction of user claims and metadata
+//   - Authentication error handling
+//
+// Implementation:
+// In production, this is typically implemented by an Auth0 validator or
+// similar JWT service. In tests, mock implementations can simulate various
+// authentication scenarios including valid tokens, expired tokens, and
+// malformed tokens.
 type TokenValidator interface {
 	ValidateToken(tokenString string) (*auth.CustomClaims, error)
 }
 
-// Hub manages all the active rooms and holds its dependencies.
+// Hub serves as the central coordinator for all video conference rooms in the system.
+// It manages room lifecycle, handles WebSocket upgrades, and provides authentication
+// services for incoming client connections.
+//
+// Architecture:
+// The Hub acts as a factory and registry for Room instances, creating them on-demand
+// when clients connect and cleaning them up when they become empty. This design
+// allows for efficient resource utilization and automatic scaling.
+//
+// Concurrency:
+// The Hub uses a mutex to protect its rooms map from concurrent access during
+// room creation, retrieval, and deletion operations. Individual rooms handle
+// their own internal synchronization independently.
+//
+// Room Management:
+//   - Creates rooms dynamically when first client connects
+//   - Routes clients to appropriate existing rooms
+//   - Cleans up empty rooms to prevent memory leaks
+//   - Maintains room registry for efficient lookup
+//
+// Security:
+// All connections must provide valid JWT tokens which are validated through
+// the TokenValidator interface before WebSocket upgrade is permitted.
 type Hub struct {
-	rooms     map[RoomIdType]*Room
-	mu        sync.Mutex
-	validator TokenValidator
+	rooms     map[RoomIdType]*Room // Registry of active rooms by room ID
+	mu        sync.Mutex           // Protects concurrent access to rooms map
+	validator TokenValidator       // JWT authentication service
 }
 
 // ServeWs authenticates the user and hands them off to the room.
@@ -100,7 +156,7 @@ func (h *Hub) ServeWs(c *gin.Context) {
 		conn:        conn,
 		send:        make(chan []byte, 256),
 		room:        room,
-		ID:    ClientIdType(claims.Subject),
+		ID:          ClientIdType(claims.Subject),
 		DisplayName: DisplayNameType(displayName),
 		Role:        RoleTypeHost, // Default role, should be derived from token scopes
 	}
