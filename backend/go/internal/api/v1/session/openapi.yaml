@@ -63,6 +63,8 @@ paths:
         **Features Available:**
         - Multi-participant video calls
         - Real-time audio/video streaming coordination
+        - WebRTC peer-to-peer connection establishment (offer/answer/candidate exchange)
+        - Connection renegotiation for adding/removing media streams
         - Participant management and role assignment
         - Waiting room functionality with host approval
         - Hand raising and speaking queue management
@@ -72,7 +74,8 @@ paths:
         Subsequent users enter the waiting room and require host approval.
         
         **Supported Events:** All video conferencing events including participant management,
-        hand raising, waiting room control, and basic chat functionality.
+        hand raising, waiting room control, WebRTC signaling (offer/answer/candidate/renegotiate),
+        and basic chat functionality.
       parameters:
         - name: roomId
           in: path
@@ -303,6 +306,10 @@ components:
             - $ref: '#/components/schemas/ParticipantPayload'
             - $ref: '#/components/schemas/RoomStatePayload'
             - $ref: '#/components/schemas/ScreenSharePayload'
+            - $ref: '#/components/schemas/WebRTCOfferPayload'
+            - $ref: '#/components/schemas/WebRTCAnswerPayload'
+            - $ref: '#/components/schemas/WebRTCCandidatePayload'
+            - $ref: '#/components/schemas/WebRTCRenegotiatePayload'
       description: |-
         Standard message format for all WebSocket communication.
         Every message sent or received follows this structure.
@@ -337,10 +344,21 @@ components:
         - "request_screenshare"
         - "accept_screenshare"
         - "deny_screenshare"
+        # WebRTC Signaling Events
+        - "offer"
+        - "answer"
+        - "candidate"
+        - "renegotiate"
       description: |-
         All possible event types that can be sent or received via WebSocket.
         Events determine how the payload should be interpreted and which
         handler processes the message.
+        
+        **WebRTC Events:**
+        - **offer**: WebRTC offer for establishing peer-to-peer connection
+        - **answer**: WebRTC answer responding to an offer
+        - **candidate**: ICE candidate for connectivity establishment
+        - **renegotiate**: Request to renegotiate connection (for adding/removing streams)
 
     # Role Types
     RoleType:
@@ -466,6 +484,110 @@ components:
       description: |-
         Screen sharing related payload for requesting, accepting, or
         denying screen sharing permissions.
+
+    # WebRTC Signaling Payloads
+    WebRTCOfferPayload:
+      allOf:
+        - $ref: '#/components/schemas/ClientInfo'
+        - type: object
+          required:
+            - targetClientId
+            - sdp
+            - type
+          properties:
+            targetClientId:
+              type: string
+              description: ID of the client to establish connection with
+              example: "user_def456"
+            sdp:
+              type: string
+              description: Session Description Protocol offer
+              example: "v=0\r\no=- 123456789 123456789 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\n..."
+            type:
+              type: string
+              enum: ["offer"]
+              description: Always "offer" for offer payloads
+              example: "offer"
+      description: |-
+        WebRTC offer payload for establishing peer-to-peer connections.
+        Sent by the initiating peer to start the WebRTC negotiation process.
+
+    WebRTCAnswerPayload:
+      allOf:
+        - $ref: '#/components/schemas/ClientInfo'
+        - type: object
+          required:
+            - targetClientId
+            - sdp
+            - type
+          properties:
+            targetClientId:
+              type: string
+              description: ID of the client who sent the original offer
+              example: "user_abc123"
+            sdp:
+              type: string
+              description: Session Description Protocol answer
+              example: "v=0\r\no=- 987654321 987654321 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\n..."
+            type:
+              type: string
+              enum: ["answer"]
+              description: Always "answer" for answer payloads
+              example: "answer"
+      description: |-
+        WebRTC answer payload responding to a WebRTC offer.
+        Sent by the receiving peer to complete the initial connection handshake.
+
+    WebRTCCandidatePayload:
+      allOf:
+        - $ref: '#/components/schemas/ClientInfo'
+        - type: object
+          required:
+            - targetClientId
+            - candidate
+          properties:
+            targetClientId:
+              type: string
+              description: ID of the client to send candidate to
+              example: "user_ghi789"
+            candidate:
+              type: string
+              description: ICE candidate string for connectivity establishment
+              example: "candidate:1 1 UDP 2130706431 192.168.1.100 54400 typ host"
+            sdpMid:
+              type: string
+              nullable: true
+              description: Media stream identification (optional)
+              example: "0"
+            sdpMLineIndex:
+              type: integer
+              nullable: true
+              description: Media line index in SDP (optional)
+              example: 0
+      description: |-
+        ICE candidate payload for WebRTC connectivity establishment.
+        Exchanged throughout the connection process to find the best path
+        for peer-to-peer communication, handling NAT traversal and firewalls.
+
+    WebRTCRenegotiatePayload:
+      allOf:
+        - $ref: '#/components/schemas/ClientInfo'
+        - type: object
+          required:
+            - targetClientId
+          properties:
+            targetClientId:
+              type: string
+              description: ID of the client to renegotiate connection with
+              example: "user_jkl012"
+            reason:
+              type: string
+              description: Reason for renegotiation (optional, for debugging)
+              example: "screen sharing enabled"
+      description: |-
+        Renegotiation payload for modifying existing WebRTC connections.
+        Used when streams are added/removed (e.g., turning camera on/off,
+        enabling screen sharing, or changing media configuration).
 
     # Error Responses
     ErrorResponse:
@@ -610,6 +732,51 @@ components:
         payload:
           clientId: "user_12345"
           displayName: "Diana Wilson"
+
+    # WebRTC Signaling Examples
+    WebRTCOffer:
+      summary: Send WebRTC offer to establish peer connection
+      value:
+        event: "offer"
+        payload:
+          clientId: "user_abc123"
+          displayName: "John Doe"
+          targetClientId: "user_def456"
+          sdp: "v=0\r\no=- 123456789 123456789 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\na=extmap-allow-mixed\r\na=msid-semantic: WMS\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=ice-ufrag:xyz123\r\na=ice-pwd:abc789def456ghi123\r\na=ice-options:trickle\r\na=fingerprint:sha-256 AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\r\na=setup:actpass\r\na=mid:0\r\na=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\na=sendrecv\r\na=msid:- \r\na=rtcp-mux\r\na=rtpmap:96 VP8/90000\r\na=rtcp-fb:96 goog-remb\r\na=rtcp-fb:96 transport-cc\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\n"
+          type: "offer"
+
+    WebRTCAnswer:
+      summary: Send WebRTC answer in response to an offer
+      value:
+        event: "answer"
+        payload:
+          clientId: "user_def456"
+          displayName: "Jane Smith"
+          targetClientId: "user_abc123"
+          sdp: "v=0\r\no=- 987654321 987654321 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\na=extmap-allow-mixed\r\na=msid-semantic: WMS\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\nc=IN IP4 0.0.0.0\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=ice-ufrag:def456\r\na=ice-pwd:ghi789jkl012mno345\r\na=ice-options:trickle\r\na=fingerprint:sha-256 FF:EE:DD:CC:BB:AA:99:88:77:66:55:44:33:22:11:00:FF:EE:DD:CC:BB:AA:99:88:77:66:55:44:33:22:11:00\r\na=setup:active\r\na=mid:0\r\na=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\na=sendrecv\r\na=msid:- \r\na=rtcp-mux\r\na=rtpmap:96 VP8/90000\r\na=rtcp-fb:96 goog-remb\r\na=rtcp-fb:96 transport-cc\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\n"
+          type: "answer"
+
+    WebRTCCandidate:
+      summary: Send ICE candidate for connectivity establishment
+      value:
+        event: "candidate"
+        payload:
+          clientId: "user_abc123"
+          displayName: "John Doe"
+          targetClientId: "user_def456"
+          candidate: "candidate:1 1 UDP 2130706431 192.168.1.100 54400 typ host"
+          sdpMid: "0"
+          sdpMLineIndex: 0
+
+    WebRTCRenegotiate:
+      summary: Request connection renegotiation
+      value:
+        event: "renegotiate"
+        payload:
+          clientId: "user_abc123"
+          displayName: "John Doe"
+          targetClientId: "user_def456"
+          reason: "screen sharing enabled"
 
     # Room State Example
     RoomStateUpdate:
