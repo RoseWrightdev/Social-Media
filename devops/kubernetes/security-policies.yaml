@@ -1,0 +1,128 @@
+---
+# Service Account for the application
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: social-media-sa
+  namespace: social-media
+  labels:
+    app.kubernetes.io/name: social-media-sa
+automountServiceAccountToken: false
+---
+# RBAC Role for application permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: social-media-role
+  namespace: social-media
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list"]
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: social-media-rolebinding
+  namespace: social-media
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: social-media-role
+subjects:
+- kind: ServiceAccount
+  name: social-media-sa
+  namespace: social-media
+---
+# Network Policy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: social-media-netpol
+  namespace: social-media
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: social-media-platform
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from Envoy Gateway
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: envoy-gateway-system
+    ports:
+    - protocol: TCP
+      port: 3000
+    - protocol: TCP
+      port: 8080
+  # Allow inter-service communication
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: social-media-platform
+    ports:
+    - protocol: TCP
+      port: 3000
+    - protocol: TCP
+      port: 8080
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow inter-service communication
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: social-media-platform
+    ports:
+    - protocol: TCP
+      port: 3000
+    - protocol: TCP
+      port: 8080
+  # Allow external HTTPS (for Auth0, etc.)
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+---
+# Pod Security Policy (if PSP is enabled)
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: social-media-psp
+  namespace: social-media
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'

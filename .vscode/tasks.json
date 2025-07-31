@@ -4,7 +4,7 @@
 		{
 			"label": "Build Frontend",
 			"type": "shell",
-			"command": "npm run build",
+			"command": "cd frontend && npm run build",
 			"group": "build",
 			"isBackground": false,
 			"problemMatcher": [

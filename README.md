@@ -2,6 +2,8 @@
 
 A modern, production-ready video conferencing platform built with Go backend and Next.js frontend, featuring WebRTC peer-to-peer communication, real-time chat, screen sharing, and advanced room management.
 
+**🚀 Now with Enterprise-Grade Kubernetes Deployment using Gateway API and Envoy!**
+
 ## 🎨 UI Designs
 
 The full set of designs is available on my [Figma account](https://www.figma.com/design/7uD81ikYXdkFDPeAWfXRl8/Social-Media----Comms?node-id=41-2&t=lxks1c13fWrUnXKb-0).
@@ -48,14 +50,65 @@ Hierarchical role-based access control:
 - **Screenshare**: Currently sharing screen (enhanced privileges)
 - **Host**: Room administrators (full control, user management)
 
-### ✋ Interactive Features
+### DevOps & Infrastructure
 
-- **Hand raising system** for speaking queue management
-- **Participant management** with real-time status updates
-- **Room state synchronization** across all clients
-- **Connection status monitoring** and automatic reconnection
+- **Kubernetes-native deployment** with Gateway API and Envoy
+- **Auto-scaling** based on CPU/Memory usage (2-15 replicas)
+- **High availability** with Pod Disruption Budgets and anti-affinity
+- **Enterprise security** with RBAC, NetworkPolicy, and Pod Security
+- **TLS termination** and automatic HTTPS with certificate management
+- **Observability-ready** with Prometheus, Grafana, and Jaeger integration
+- **GitOps-ready** configurations for ArgoCD/Flux deployment
+
+## 🚀 Deployment Features
+
+### One-Click Production Deployment
+
+```bash
+# Deploy entire platform to Kubernetes
+./devops/deploy.sh deploy
+```
+
+**What gets deployed:**
+- ✅ **Envoy Gateway** with Gateway API for advanced traffic management
+- ✅ **Auto-scaling** frontend (2-10 pods) and backend (2-15 pods)
+- ✅ **TLS termination** with automatic HTTPS certificate management
+- ✅ **Security policies** (RBAC, NetworkPolicy, Pod Security Standards)
+- ✅ **Monitoring stack** (Prometheus, Grafana, ServiceMonitor)
+- ✅ **High availability** with anti-affinity and Pod Disruption Budgets
+- ✅ **Load balancing** with health checks and failover
+- ✅ **WebSocket support** with dedicated routes and scaling
+
+### Deployment Options
+
+| Environment | Command | Features |
+|-------------|---------|----------|
+| **Production** | `./devops/deploy.sh deploy` | Full security, auto-scaling, monitoring |
+| **Staging** | `KUBECTL_CONTEXT=staging ./devops/deploy.sh deploy` | Production-like with staging context |
+| **Development** | `DRY_RUN=true ./devops/deploy.sh deploy` | Validate configs without applying |
+| **Health Check** | `./devops/deploy.sh health` | Check deployment status |
+| **Cleanup** | `./devops/deploy.sh cleanup` | Remove all resources |
 
 ## 🏗️ Architecture
+
+### Production Infrastructure
+
+**Cloud-Native Kubernetes Deployment:**
+```
+Internet → Envoy Gateway (Gateway API) → Kubernetes Cluster
+                                       ├── Frontend (Next.js) - Auto-scaling 2-10 pods
+                                       ├── Backend (Go) - Auto-scaling 2-15 pods
+                                       ├── WebSocket (Real-time) - Load balanced
+                                       └── Monitoring (Prometheus/Grafana)
+```
+
+**Key Infrastructure Features:**
+- 🚀 **Gateway API** with Envoy for advanced traffic management
+- 🔒 **Enterprise Security** (RBAC, NetworkPolicy, Pod Security)
+- 📊 **Auto-scaling** based on CPU/Memory metrics
+- 🛡️ **High Availability** with multi-zone deployment
+- 🔐 **TLS Everywhere** with automatic certificate management
+- 📈 **Observability** with Prometheus, Grafana, and distributed tracing
 
 ### Backend (Go)
 
@@ -129,17 +182,39 @@ Full API documentation is available in the [OpenAPI specification](backend/go/in
 
 ### DevOps
 
-- **Docker** - Containerized deployment
-- **Kubernetes** - Production orchestration
-- **NGINX** - Load balancing and reverse proxy
+- **Kubernetes** - Production orchestration with Gateway API
+- **Envoy Gateway** - Advanced traffic management and load balancing
+- **Docker** - Multi-stage optimized containers
+- **Prometheus & Grafana** - Comprehensive monitoring and alerting
+- **Auto-scaling** - HPA based on CPU/Memory metrics
+- **Security** - RBAC, NetworkPolicy, Pod Security Standards
 
 ## 🚦 Getting Started
+
+### Quick Deployment (Production)
+
+**Deploy to Kubernetes with one command:**
+
+```bash
+# Clone and deploy
+git clone https://github.com/RoseWrightdev/Social-Media.git
+cd Social-Media
+./devops/deploy.sh deploy
+```
+
+**Access your application:**
+- Frontend: https://social-media.example.com
+- WebSocket: wss://ws.social-media.example.com/ws
+- Monitoring: https://social-media.example.com/metrics
+
+### Local Development
 
 ### Prerequisites
 
 - Go 1.21 or higher
 - Node.js 18 or higher
-- Docker (optional, for containerized deployment)
+- Docker (for production deployment)
+- Kubernetes cluster (for production deployment)
 
 ### Backend Setup
 
@@ -189,42 +264,80 @@ Social-Media/
 │   ├── hooks/               # Custom React hooks
 │   ├── lib/                 # Utility libraries
 │   └── __tests__/           # Test suites
-└── devops/                  # Deployment configuration
-    ├── kubernetes/          # K8s manifests
-    └── NGINX/              # Load balancer config
+└── devops/                  # Production deployment
+    ├── deploy.sh            # One-click deployment script
+    ├── docker/              # Optimized container configs
+    ├── kubernetes/          # K8s manifests with Gateway API
+    │   ├── gateway/         # Envoy Gateway configuration
+    │   ├── security-policies.yaml
+    │   └── monitoring.yaml  # Auto-scaling & observability
+    └── README.md            # Deployment documentation
 ```
 
 ## 🔧 Configuration
 
-### Environment Variables
+### Production Deployment
+
+**Copy and configure environment:**
 
 ```bash
-# Backend
+cd devops
+cp .env.example .env
+# Edit .env with your values
+```
+
+**Key Configuration:**
+
+```bash
+# Domain Configuration
+DOMAIN=your-domain.com
+WEBSOCKET_DOMAIN=ws.your-domain.com
+
+# Auth0 (Base64 encoded)
+AUTH0_DOMAIN=your-auth0-domain
+AUTH0_CLIENT_ID=your-client-id
+JWT_SECRET=your-jwt-secret
+
+# TLS Certificates
+TLS_CERT_PATH=/path/to/cert.pem
+TLS_KEY_PATH=/path/to/key.pem
+```
+
+### Development Environment Variables
+
+```bash
+# Backend (.env)
 JWT_SECRET=your-jwt-secret
 AUTH0_DOMAIN=your-auth0-domain
 CORS_ORIGINS=http://localhost:3000
 
-# Frontend
+# Frontend (.env.local)
 NEXT_PUBLIC_WS_URL=ws://localhost:8080
 NEXT_PUBLIC_AUTH0_DOMAIN=your-auth0-domain
 ```
 
-### Production Deployment
+### Production Features
 
-The platform includes production-ready configurations:
+The platform includes enterprise-ready configurations:
 
-- **Kubernetes manifests** for scalable deployment
-- **NGINX configuration** for load balancing
-- **Docker containers** for consistent environments
-- **Rate limiting** and security headers
+- **Kubernetes Gateway API** with Envoy for advanced traffic management
+- **Auto-scaling** (2-15 replicas) based on CPU/Memory metrics
+- **High availability** with Pod Disruption Budgets and anti-affinity
+- **Security** with RBAC, NetworkPolicy, and Pod Security Standards
+- **TLS termination** and automatic certificate management
+- **Monitoring** with Prometheus, Grafana, and distributed tracing
+- **GitOps-ready** for ArgoCD/Flux deployment
 
 ## 📊 Performance & Scalability
 
 - **WebRTC P2P**: Reduces server load with direct client connections
 - **Efficient WebSocket**: Minimal overhead for real-time communication
-- **Horizontal scaling**: Stateless backend design supports multiple instances
+- **Kubernetes Auto-scaling**: Horizontal scaling from 2-15 replicas based on metrics
+- **Envoy Load Balancing**: Advanced traffic distribution and health checking
 - **Connection pooling**: Optimized resource utilization
 - **Rate limiting**: Protection against abuse and DoS attacks
+- **Multi-zone deployment**: High availability across failure domains
+- **Resource optimization**: Tuned CPU/Memory requests and limits
 
 ## 🧪 Testing
 
@@ -237,18 +350,49 @@ The platform includes comprehensive testing:
 
 ## 📚 Documentation
 
-- [API Documentation](backend/go/internal/api/v1/session/openapi.yaml) - Complete WebSocket API reference
-- [Frontend Components](frontend/components/) - UI component library
-- [WebRTC Implementation](backend/go/internal/v1/session/webrtc_test.go) - Signaling test examples
+- **[DevOps Guide](devops/README.md)** - Complete Kubernetes deployment guide
+- **[API Documentation](backend/go/internal/api/v1/session/openapi.yaml)** - WebSocket API reference
+- **[Frontend Components](frontend/components/)** - UI component library
+- **[WebRTC Implementation](backend/go/internal/v1/session/webrtc_test.go)** - Signaling examples
+- **[Authentication Guide](frontend/AUTHENTICATION.md)** - Auth0 integration details
+
+### Quick Links
+
+- 🚀 **[One-Click Deployment](devops/deploy.sh)** - Deploy to Kubernetes
+- 🔧 **[Configuration](devops/.env.example)** - Environment variables
+- 🛡️ **[Security](devops/kubernetes/security-policies.yaml)** - RBAC and policies
+- 📊 **[Monitoring](devops/kubernetes/monitoring.yaml)** - Observability setup
+- 🌐 **[Gateway](devops/kubernetes/gateway/)** - Traffic management
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Run tests (`go test ./... && npm test`)
-4. Commit changes (`git commit -m 'Add amazing feature'`)
-5. Push to branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
+4. Test deployment (`./devops/deploy.sh deploy DRY_RUN=true`)
+5. Commit changes (`git commit -m 'Add amazing feature'`)
+6. Push to branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Development Workflow
+
+```bash
+# Setup development environment
+git clone https://github.com/RoseWrightdev/Social-Media.git
+cd Social-Media
+
+# Run backend
+cd backend/go && go run cmd/v1/session/main.go
+
+# Run frontend (new terminal)
+cd frontend && npm run dev
+
+# Run tests
+npm run test && go test ./...
+
+# Test production deployment
+./devops/deploy.sh deploy
+```
 
 ## 📄 License
 

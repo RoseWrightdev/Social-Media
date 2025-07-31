@@ -1,0 +1,213 @@
+---
+# ServiceMonitor for Prometheus scraping (including logging metrics)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: social-media-metrics
+  namespace: social-media
+  labels:
+    app.kubernetes.io/name: social-media-metrics
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: social-media-platform
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  - port: websocket
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  # Fluent Bit metrics
+  - port: fluent-bit-metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  # Vector metrics
+  - port: vector-metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+# ServiceMonitor for Logging Infrastructure
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: logging-infrastructure-metrics
+  namespace: logging
+  labels:
+    app.kubernetes.io/name: logging-metrics
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: elasticsearch
+  endpoints:
+  - port: http
+    path: /_prometheus/metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+# PrometheusRule for Logging Alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: logging-alerts
+  namespace: social-media
+  labels:
+    app.kubernetes.io/name: logging-alerts
+spec:
+  groups:
+  - name: logging.rules
+    rules:
+    - alert: HighLogErrorRate
+      expr: rate(fluentbit_input_records_total{name="tail.0"}[5m]) > 10
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High log error rate detected"
+        description: "Error log rate is {{ $value }} errors per second"
+    
+    - alert: FluentBitDown
+      expr: up{job="fluent-bit"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Fluent Bit is down"
+        description: "Fluent Bit logging sidecar is not responding"
+    
+    - alert: VectorDown
+      expr: up{job="vector"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Vector is down"
+        description: "Vector log aggregator is not responding"
+    
+    - alert: ElasticsearchDown
+      expr: elasticsearch_cluster_health_status != 1
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Elasticsearch cluster is unhealthy"
+        description: "Elasticsearch cluster status is {{ $value }}"
+    
+    - alert: HighLogVolume
+      expr: rate(vector_events_processed_total[5m]) > 1000
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High log volume detected"
+        description: "Log processing rate is {{ $value }} events per second"
+---
+# HorizontalPodAutoscaler for frontend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend-hpa
+  namespace: social-media
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend-deployment
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+---
+# HorizontalPodAutoscaler for backend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  namespace: social-media
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend-deployment
+  minReplicas: 2
+  maxReplicas: 15
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+---
+# PodDisruptionBudget for frontend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: social-media
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/component: web
+  maxUnavailable: 1
+---
+# PodDisruptionBudget for backend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: social-media
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+      app.kubernetes.io/component: api
+  maxUnavailable: 1
