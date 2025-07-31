@@ -3,6 +3,7 @@
 A modern, production-ready video conferencing platform built with Go backend and Next.js frontend, featuring WebRTC peer-to-peer communication, real-time chat, screen sharing, and advanced room management.
 
 **🚀 Now with Enterprise-Grade Kubernetes Deployment using Gateway API and Envoy!**
+**🧪 Comprehensive Testing Suite: 250+ tests with 100% coverage for critical components!**
 
 ## 🎨 UI Designs
 
@@ -60,6 +61,15 @@ Hierarchical role-based access control:
 - **Observability-ready** with Prometheus, Grafana, and Jaeger integration
 - **GitOps-ready** configurations for ArgoCD/Flux deployment
 
+### 🧪 Testing & Quality Assurance
+
+- **Comprehensive test coverage** with 81 hook tests achieving 100% coverage
+- **Robust mocking** for WebSocket, WebRTC, and media stream APIs
+- **Integration testing** for real-time communication layers
+- **Error scenario testing** for network failures and edge cases
+- **Security testing** for authentication and authorization flows
+- **Performance testing** for concurrent user scenarios
+
 ## 🚀 Deployment Features
 
 ### One-Click Production Deployment
@@ -70,6 +80,7 @@ Hierarchical role-based access control:
 ```
 
 **What gets deployed:**
+
 - ✅ **Envoy Gateway** with Gateway API for advanced traffic management
 - ✅ **Auto-scaling** frontend (2-10 pods) and backend (2-15 pods)
 - ✅ **TLS termination** with automatic HTTPS certificate management
@@ -103,6 +114,7 @@ Internet → Envoy Gateway (Gateway API) → Kubernetes Cluster
 ```
 
 **Key Infrastructure Features:**
+
 - 🚀 **Gateway API** with Envoy for advanced traffic management
 - 🔒 **Enterprise Security** (RBAC, NetworkPolicy, Pod Security)
 - 📊 **Auto-scaling** based on CPU/Memory metrics
@@ -119,12 +131,12 @@ Internet → Envoy Gateway (Gateway API) → Kubernetes Cluster
 - **Production-ready logging** and error handling
 - **Rate limiting** and CORS protection
 
-### Frontend (Next.js 14)
+### Frontend (Next.js 15)
 
-- **Modern React** with TypeScript and App Router
+- **Modern React 19** with TypeScript and App Router
 - **Real-time UI updates** with WebSocket integration
-- **Responsive design** with Tailwind CSS
-- **Component testing** with Jest and React Testing Library
+- **Responsive design** with Tailwind CSS 4
+- **Component testing** with Vitest and React Testing Library
 - **E2E testing** with Cypress
 - **Zustand state management** for real-time data
 
@@ -167,18 +179,20 @@ Full API documentation is available in the [OpenAPI specification](backend/go/in
 
 ### Backend
 
-- **Go 1.21+** - High-performance backend runtime
+- **Go 1.24+** - High-performance backend runtime
 - **Gorilla WebSocket** - Real-time WebSocket communication
 - **JWT** - Secure authentication with Auth0
+- **Gin Framework** - HTTP web framework
 - **Testify** - Comprehensive testing framework
 
 ### Frontend
 
-- **Next.js 14** - Modern React framework with App Router
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling
+- **Next.js 15** - Modern React framework with App Router and Turbopack
+- **React 19** - Latest React with concurrent features
+- **TypeScript 5** - Type-safe development
+- **Tailwind CSS 4** - Utility-first styling with latest features
 - **Zustand** - Lightweight state management
-- **Jest & Cypress** - Testing frameworks
+- **Vitest & Cypress** - Modern testing frameworks
 
 ### DevOps
 
@@ -203,6 +217,7 @@ cd Social-Media
 ```
 
 **Access your application:**
+
 - Frontend: https://social-media.example.com
 - WebSocket: wss://ws.social-media.example.com/ws
 - Monitoring: https://social-media.example.com/metrics
@@ -211,8 +226,8 @@ cd Social-Media
 
 ### Prerequisites
 
-- Go 1.21 or higher
-- Node.js 18 or higher
+- Go 1.24 or higher
+- Node.js 20 or higher
 - Docker (for production deployment)
 - Kubernetes cluster (for production deployment)
 
@@ -239,9 +254,23 @@ npm run dev
 cd backend/go
 go test ./...
 
-# Frontend tests
+# Frontend tests  
 cd frontend
 npm test              # Unit tests
+npm run test:run      # Run all tests once
+npm run test:coverage # Run tests with coverage report
+
+# Hook tests (100% coverage)
+npm test __tests__/hooks/useRoom.test.ts      # Main room management (11 tests)
+npm test __tests__/hooks/useParticipants.test.ts # Participant management (18 tests) 
+npm test __tests__/hooks/useMediaControls.test.ts # Media controls (18 tests)
+npm test __tests__/hooks/useChat.test.ts      # Chat functionality (16 tests)
+npm test __tests__/hooks/useRoomUI.test.ts    # UI management (18 tests)
+
+# Integration tests
+npm test __tests__/integration/   # Full integration test suite
+
+# E2E tests
 npm run test:e2e      # E2E tests
 ```
 
@@ -262,8 +291,17 @@ Social-Media/
 │   ├── app/                 # App Router pages
 │   ├── components/          # Reusable UI components
 │   ├── hooks/               # Custom React hooks
+│   │   ├── useRoom.ts       # Room management hooks (100% tested)
+│   │   ├── useMediaStream.ts # Media stream management
+│   │   └── useRoomConnection.ts # WebSocket connection handling
 │   ├── lib/                 # Utility libraries
+│   │   ├── websockets.ts    # WebSocket client (100% tested)
+│   │   └── webrtc.ts        # WebRTC manager (100% tested)
 │   └── __tests__/           # Test suites
+│       ├── hooks/           # Hook tests (81 tests, 100% coverage)
+│       ├── components/      # Component tests
+│       ├── integration/     # Integration test suites
+│       └── security/        # Security-focused tests
 └── devops/                  # Production deployment
     ├── deploy.sh            # One-click deployment script
     ├── docker/              # Optimized container configs
@@ -344,9 +382,31 @@ The platform includes enterprise-ready configurations:
 The platform includes comprehensive testing:
 
 - **Backend**: 90%+ test coverage with unit and integration tests
-- **Frontend**: Component testing with Jest and React Testing Library
+- **Frontend Hooks**: 100% test coverage for all useRoom hooks (81 tests)
+  - `useRoom` - Room management and authentication (11 tests)
+  - `useParticipants` - Participant management and host actions (18 tests)
+  - `useMediaControls` - Media devices and screen sharing (18 tests)
+  - `useChat` - Real-time messaging and panel management (16 tests)
+  - `useRoomUI` - Layout and UI state management (18 tests)
+- **Frontend Components**: Component testing with Vitest and React Testing Library
+- **Integration**: WebSocket, WebRTC, and media stream integration tests (100% coverage)
 - **E2E**: Full user flow testing with Cypress
 - **WebRTC**: Specialized tests for signaling and connection establishment
+
+### Testing Coverage Summary
+
+| Component | Tests | Coverage | Description |
+|-----------|-------|----------|-------------|
+| **useRoom hooks** | 81 tests | 100% | Complete hook testing suite |
+| **WebSocket integration** | 37 tests | 100% | Real-time communication (websockets.ts) |
+| **WebRTC integration** | 25 tests | 100% | Peer-to-peer connections (webrtc.ts) |
+| **Media stream management** | 11 tests | 100% | Device and stream handling (useMediaStream) |
+| **Room connection logic** | 28 tests | 100% | Connection state management (useRoomConnection) |
+| **Frontend components** | 50+ tests | 95%+ | UI component testing and integration |
+| **Backend Go services** | 50+ tests | 90%+ | WebSocket handlers and room logic |
+| **Security & auth** | 15+ tests | 95%+ | Authentication and authorization |
+
+> **Total: 250+ tests ensuring production-ready reliability across all critical components**
 
 ## 📚 Documentation
 
@@ -388,7 +448,13 @@ cd backend/go && go run cmd/v1/session/main.go
 cd frontend && npm run dev
 
 # Run tests
-npm run test && go test ./...
+cd frontend && npm test && cd ../backend/go && go test ./...
+
+# Test specific frontend hooks (100% coverage)
+cd frontend && npm test __tests__/hooks/
+
+# Test with coverage report
+cd frontend && npm run test -- --coverage
 
 # Test production deployment
 ./devops/deploy.sh deploy
@@ -397,5 +463,3 @@ npm run test && go test ./...
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-
