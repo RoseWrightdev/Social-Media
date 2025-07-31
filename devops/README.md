@@ -56,6 +56,7 @@ devops/
 ## Quick Start
 
 ### 1. Deploy Everything
+
 ```bash
 # Deploy the entire platform
 ./devops/deploy.sh deploy
@@ -67,14 +68,16 @@ devops/
 ```
 
 ### 2. Check Deployment Status
+
 ```bash
 ./devops/deploy.sh health
 ```
 
 ### 3. Access the Application
-- **Frontend**: https://social-media.example.com
+
+- **Frontend**: <https://social-media.example.com>
 - **WebSocket**: wss://ws.social-media.example.com/ws
-- **API**: https://social-media.example.com/api
+- **API**: <https://social-media.example.com/api>
 
 ## 🔍 Logging Architecture
 
@@ -83,6 +86,7 @@ devops/
 The backend deployment includes **enterprise-grade logging sidecars** for comprehensive log management:
 
 #### **Fluent Bit Sidecar**
+
 - **Real-time log collection** from application logs
 - **JSON parsing** and structured logging
 - **Kubernetes metadata enrichment** (pod, node, namespace)
@@ -90,6 +94,7 @@ The backend deployment includes **enterprise-grade logging sidecars** for compre
 - **Multi-format support** (JSON, plain text, custom parsers)
 
 #### **Vector Sidecar**
+
 - **Advanced log processing** and transformation
 - **Event enrichment** with application context
 - **Multiple output destinations** (Elasticsearch, Prometheus, console)
@@ -97,6 +102,7 @@ The backend deployment includes **enterprise-grade logging sidecars** for compre
 - **Real-time metrics** for observability
 
 #### **Centralized ELK Stack**
+
 - **Elasticsearch cluster** (3 nodes) for log storage and search
 - **Kibana dashboard** for log visualization and analysis
 - **Index lifecycle management** (hot/warm/cold/delete phases)
@@ -112,6 +118,7 @@ Backend App → Shared Volume → Fluent Bit → Vector → Elasticsearch → Ki
 ```
 
 **Key Features:**
+
 - 📊 **Structured Logging** with JSON format and metadata
 - 🔍 **Full-text Search** across all application logs
 - 📈 **Log Metrics** and alerting based on log patterns
@@ -125,11 +132,13 @@ Backend App → Shared Volume → Fluent Bit → Vector → Elasticsearch → Ki
 ### Environment Variables
 
 #### Frontend
+
 - `NEXT_TELEMETRY_DISABLED=1`
 - `NODE_ENV=production`
 - `BACKEND_URL=http://backend-service:8080`
 
 #### Backend
+
 - `GO_ENV=production`
 - `PORT=8080`
 - `JWT_SECRET` (from secret)
@@ -162,18 +171,21 @@ kubectl create secret tls social-media-tls \
 ## Gateway API Features
 
 ### HTTP Routes
+
 - **Frontend Routes**: Static assets, API proxy
 - **Backend Routes**: REST API endpoints
 - **WebSocket Routes**: Real-time communication
 - **Redirects**: HTTP to HTTPS
 
 ### Advanced Features
+
 - **TLS Termination**: Automatic HTTPS
 - **Load Balancing**: Across multiple replicas
 - **Header Modification**: Request/response headers
 - **Path-based Routing**: Different backends for different paths
 
 ### Envoy Configuration
+
 - **Security**: Non-root containers, capabilities dropped
 - **Observability**: Metrics, access logs
 - **High Availability**: Multiple replicas with anti-affinity
@@ -182,17 +194,20 @@ kubectl create secret tls social-media-tls \
 ## Security Features
 
 ### Pod Security
+
 - Non-root containers
 - Read-only root filesystem
 - Dropped capabilities
 - Security contexts
 
 ### Network Security
+
 - NetworkPolicy for traffic control
 - Service mesh ready
 - TLS everywhere
 
 ### RBAC
+
 - Minimal permissions
 - Service accounts
 - Role-based access
@@ -200,16 +215,19 @@ kubectl create secret tls social-media-tls \
 ## Monitoring & Scaling
 
 ### Auto-scaling
+
 - **HPA**: CPU and memory-based scaling
 - **Frontend**: 2-10 replicas
 - **Backend**: 2-15 replicas
 
 ### Monitoring
+
 - Prometheus ServiceMonitor
 - Health checks
 - Metrics endpoints
 
 ### High Availability
+
 - Pod Disruption Budgets
 - Anti-affinity rules
 - Rolling updates
@@ -217,6 +235,7 @@ kubectl create secret tls social-media-tls \
 ## Development vs Production
 
 ### Development
+
 ```bash
 # Use local images
 DRY_RUN=true ./devops/deploy.sh deploy
@@ -227,6 +246,7 @@ kubectl port-forward svc/backend-service 8080:80 -n social-media
 ```
 
 ### Production
+
 ```bash
 # Deploy with production settings
 KUBECTL_CONTEXT=production ./devops/deploy.sh deploy
@@ -235,6 +255,7 @@ KUBECTL_CONTEXT=production ./devops/deploy.sh deploy
 ## Troubleshooting
 
 ### Check Pod Status
+
 ```bash
 kubectl get pods -n social-media
 kubectl logs -f deployment/frontend-deployment -n social-media
@@ -242,6 +263,7 @@ kubectl logs -f deployment/backend-deployment -n social-media
 ```
 
 ### Check Gateway Status
+
 ```bash
 kubectl get gateway -n social-media
 kubectl get httproute -n social-media
@@ -249,12 +271,14 @@ kubectl describe gateway social-media-gateway -n social-media
 ```
 
 ### Check Services
+
 ```bash
 kubectl get svc -n social-media
 kubectl get endpoints -n social-media
 ```
 
 ### Debug Network Issues
+
 ```bash
 # Check NetworkPolicy
 kubectl get networkpolicy -n social-media
@@ -286,14 +310,18 @@ kubectl get gateway social-media-gateway -n social-media -o jsonpath='{.status.a
 ## Advanced Configuration
 
 ### Custom Envoy Config
+
 Modify `gateway/envoy-config.yaml` for advanced Envoy features:
+
 - Rate limiting
 - Authentication filters
 - Custom listeners
 - Circuit breakers
 
 ### Observability Stack
+
 Deploy with Prometheus, Grafana, and Jaeger:
+
 ```bash
 # Add to your cluster
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -301,7 +329,9 @@ helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring
 ```
 
 ### GitOps Integration
+
 Use ArgoCD or Flux for GitOps deployment:
+
 ```yaml
 # ArgoCD Application
 apiVersion: argoproj.io/v1alpha1
