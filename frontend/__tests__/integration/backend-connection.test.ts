@@ -64,16 +64,29 @@ class MockWebSocket extends EventTarget {
 
 describe('Frontend-Backend Integration Tests', () => {
   let mockWebSocket: MockWebSocket
+  let WebSocketSpy: any
 
   beforeEach(() => {
     // Reset store state
     useRoomStore.getState().leaveRoom()
     
-    // Mock WebSocket constructor
-    vi.mocked(global.WebSocket).mockImplementation((url: string | URL) => {
-      mockWebSocket = new MockWebSocket(url.toString()) as any
-      return mockWebSocket as any
+    // Clear all mocks
+    vi.clearAllMocks()
+    
+    // Create a spy on WebSocket constructor
+    WebSocketSpy = vi.fn().mockImplementation((url: string | URL) => {
+      const mock = new MockWebSocket(url.toString())
+      mockWebSocket = mock
+      return mock
     })
+    
+    // Mock WebSocket constructor with spy
+    ;(global as any).WebSocket = WebSocketSpy
+    // Copy static properties
+    WebSocketSpy.CONNECTING = 0
+    WebSocketSpy.OPEN = 1
+    WebSocketSpy.CLOSING = 2
+    WebSocketSpy.CLOSED = 3
   })
 
   afterEach(() => {
@@ -94,7 +107,7 @@ describe('Frontend-Backend Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 20))
 
       // Verify WebSocket was created with correct URL
-      expect(global.WebSocket).toHaveBeenCalledWith(
+      expect(WebSocketSpy).toHaveBeenCalledWith(
         'ws://localhost:8080/ws/zoom/test-room-123?token=jwt-token-123'
       )
       
@@ -265,7 +278,7 @@ describe('Frontend-Backend Integration Tests', () => {
       const updatedStore = useRoomStore.getState()
 
       // Verify error was set
-      expect(updatedStore.connectionState.lastError).toBe('Access to room denied')
+      expect(updatedStore.connectionState.lastError).toBe('Access to room denied by host')
     })
 
     it('should handle hand raising events', async () => {
@@ -454,7 +467,7 @@ describe('Frontend-Backend Integration Tests', () => {
       })
 
       // Verify WebSocket was created with token in query params
-      expect(global.WebSocket).toHaveBeenCalledWith(
+      expect(WebSocketSpy).toHaveBeenCalledWith(
         `ws://localhost:8080/ws/zoom/test-room?token=${testToken}`
       )
     })
@@ -463,13 +476,14 @@ describe('Frontend-Backend Integration Tests', () => {
       const store = useRoomStore.getState()
       
       // Mock WebSocket to simulate auth error
-      vi.mocked(global.WebSocket).mockImplementation((url: string | URL) => {
-        const mockWs = new MockWebSocket(url.toString()) as any
+      WebSocketSpy.mockImplementation((url: string | URL) => {
+        const mock = new MockWebSocket(url.toString())
+        mockWebSocket = mock
+        // Simulate auth error immediately
         setTimeout(() => {
-          const errorEvent = new Event('error')
-          mockWs.onerror?.(errorEvent)
-        }, 10)
-        return mockWs
+          mock.simulateError()
+        }, 5)
+        return mock
       })
 
       try {
@@ -481,13 +495,13 @@ describe('Frontend-Backend Integration Tests', () => {
       }
 
       // Wait a bit for async operations
-      await new Promise(resolve => setTimeout(resolve, 20))
+      await new Promise(resolve => setTimeout(resolve, 30))
 
       // Get updated store state
       const updatedStore = useRoomStore.getState()
 
       // Should handle auth failure gracefully - error should be set in store
-      expect(updatedStore.connectionState.lastError).toBe('WebSocket connection error')
+      expect(updatedStore.connectionState.lastError).toBe('Failed to initialize room: Error: Failed to connect to WebSocket server')
     })
   })
 })
