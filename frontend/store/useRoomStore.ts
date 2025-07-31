@@ -207,16 +207,18 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           displayName: username,
         };
 
-        // Create new WebSocket client
+        // Create new WebSocket client with CORRECT endpoint
         const wsClient = new WebSocketClient({
-          url: `ws://localhost:8080/ws/room/${roomId}`,
+          url: `ws://localhost:8080/ws/zoom/${roomId}`, // ✅ Fixed: was /ws/room/ 
           token,
           autoReconnect: true,
           reconnectInterval: 3000,
           maxReconnectAttempts: 5,
         });
 
-        // Set up WebSocket event handlers for existing events
+        // Set up ALL backend event handlers
+        
+        // Chat events
         wsClient.on('add_chat', (message) => {
           const chatPayload = message.payload as ChatPayload;
           const chatMessage: ChatMessage = {
@@ -231,6 +233,122 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           set((state) => ({
             messages: [...state.messages, chatMessage],
             unreadCount: state.isChatPanelOpen ? state.unreadCount : state.unreadCount + 1,
+          }));
+        });
+
+        // CRITICAL: Add room_state handler (was missing)
+        wsClient.on('room_state', (message) => {
+          const payload = message.payload as any; // RoomStatePayload from backend
+          
+          // Update participants from backend
+          const participantsMap = new Map<string, Participant>();
+          
+          // Add hosts
+          payload.hosts?.forEach((host: any) => {
+            participantsMap.set(host.clientId, {
+              id: host.clientId,
+              username: host.displayName,
+              role: 'host',
+              isAudioEnabled: true,
+              isVideoEnabled: true,
+              isScreenSharing: false,
+              isSpeaking: false,
+              lastActivity: new Date(),
+            });
+          });
+
+          // Add participants  
+          payload.participants?.forEach((participant: any) => {
+            participantsMap.set(participant.clientId, {
+              id: participant.clientId,
+              username: participant.displayName,
+              role: 'participant',
+              isAudioEnabled: true,
+              isVideoEnabled: true,
+              isScreenSharing: false,
+              isSpeaking: false,
+              lastActivity: new Date(),
+            });
+          });
+
+          // Update waiting room
+          const waitingParticipants: Participant[] = payload.waitingUsers?.map((user: any) => ({
+            id: user.clientId,
+            username: user.displayName,
+            role: 'participant' as const,
+            isAudioEnabled: false,
+            isVideoEnabled: false,
+            isScreenSharing: false,
+            isSpeaking: false,
+            lastActivity: new Date(),
+          })) || [];
+
+          set({
+            participants: participantsMap,
+            pendingParticipants: waitingParticipants,
+            isHost: payload.hosts?.some((h: any) => h.clientId === clientInfo.clientId) || false,
+          });
+        });
+
+        // Waiting room events
+        wsClient.on('accept_waiting', (message) => {
+          set({ isWaitingRoom: false, isJoined: true });
+        });
+
+        wsClient.on('deny_waiting', (message) => {
+          get().handleError('Access to room denied');
+        });
+
+        // Hand raising events
+        wsClient.on('raise_hand', (message) => {
+          const payload = message.payload as any;
+          // Add to speaking participants or update UI
+          set((state) => {
+            const newSpeaking = new Set(state.speakingParticipants);
+            newSpeaking.add(payload.clientId);
+            return { speakingParticipants: newSpeaking };
+          });
+        });
+
+        wsClient.on('lower_hand', (message) => {
+          const payload = message.payload as any;
+          set((state) => {
+            const newSpeaking = new Set(state.speakingParticipants);
+            newSpeaking.delete(payload.clientId);
+            return { speakingParticipants: newSpeaking };
+          });
+        });
+
+        // WebRTC signaling events
+        wsClient.on('offer', (message) => {
+          if (get().webrtcManager) {
+            // Handle WebRTC offer - will be implemented in WebRTCManager
+            console.log('Received WebRTC offer:', message);
+          }
+        });
+
+        wsClient.on('answer', (message) => {
+          if (get().webrtcManager) {
+            // Handle WebRTC answer - will be implemented in WebRTCManager
+            console.log('Received WebRTC answer:', message);
+          }
+        });
+
+        wsClient.on('candidate', (message) => {
+          if (get().webrtcManager) {
+            // Handle ICE candidate - will be implemented in WebRTCManager
+            console.log('Received ICE candidate:', message);
+          }
+        });
+
+        // Connection state handlers
+        wsClient.onConnectionChange?.((connectionState: string) => {
+          set((state) => ({
+            connectionState: {
+              ...state.connectionState,
+              wsConnected: connectionState === 'connected',
+              wsReconnecting: connectionState === 'reconnecting',
+            }
           }));
         });
 
