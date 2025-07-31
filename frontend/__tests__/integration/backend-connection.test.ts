@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { useRoomStore } from '@/store/useRoomStore'
 import { WebSocketClient } from '@/lib/websockets'
 
-// Mock WebSocket implementation for testing
+// Enhanced Mock WebSocket implementation for testing
 class MockWebSocket extends EventTarget {
   url: string
   readyState: number = WebSocket.CONNECTING
@@ -13,11 +13,16 @@ class MockWebSocket extends EventTarget {
   onerror: ((event: Event) => void) | null = null
   sentMessages: string[] = []
 
+  static CONNECTING = 0
+  static OPEN = 1
+  static CLOSING = 2
+  static CLOSED = 3
+
   constructor(url: string) {
     super()
     this.url = url
     
-    // Simulate connection opening
+    // Simulate realistic connection timing
     setTimeout(() => {
       this.readyState = WebSocket.OPEN
       const openEvent = new Event('open')
@@ -27,28 +32,33 @@ class MockWebSocket extends EventTarget {
   }
 
   send(data: string) {
+    if (this.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not open')
+    }
     this.sentMessages.push(data)
-    
-    // Echo back for basic testing
-    setTimeout(() => {
-      const messageEvent = new MessageEvent('message', { data })
-      this.onmessage?.(messageEvent)
-      this.dispatchEvent(messageEvent)
-    }, 10)
   }
 
-  close() {
+  close(code?: number, reason?: string) {
     this.readyState = WebSocket.CLOSED
-    const closeEvent = new CloseEvent('close')
+    const closeEvent = new CloseEvent('close', { code: code || 1000, reason })
     this.onclose?.(closeEvent)
     this.dispatchEvent(closeEvent)
   }
 
   // Simulate receiving a message from server
   simulateMessage(data: string) {
-    const messageEvent = new MessageEvent('message', { data })
-    this.onmessage?.(messageEvent)
-    this.dispatchEvent(messageEvent)
+    if (this.readyState === WebSocket.OPEN) {
+      const messageEvent = new MessageEvent('message', { data })
+      this.onmessage?.(messageEvent)
+      this.dispatchEvent(messageEvent)
+    }
+  }
+
+  // Simulate connection error
+  simulateError() {
+    const errorEvent = new Event('error')
+    this.onerror?.(errorEvent)
+    this.dispatchEvent(errorEvent)
   }
 }
 
@@ -75,20 +85,27 @@ describe('Frontend-Backend Integration Tests', () => {
     it('should connect to correct backend endpoint', async () => {
       const store = useRoomStore.getState()
       
+      // Wait for connection to establish
       await act(async () => {
         await store.initializeRoom('test-room-123', 'Test User', 'jwt-token-123')
       })
+
+      // Wait a bit for async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 20))
 
       // Verify WebSocket was created with correct URL
       expect(global.WebSocket).toHaveBeenCalledWith(
         'ws://localhost:8080/ws/zoom/test-room-123?token=jwt-token-123'
       )
       
+      // Get updated store state
+      const updatedStore = useRoomStore.getState()
+      
       // Verify store state was updated
-      expect(store.roomId).toBe('test-room-123')
-      expect(store.currentUsername).toBe('Test User')
-      expect(store.wsClient).toBeTruthy()
-      expect(store.connectionState.wsConnected).toBe(true)
+      expect(updatedStore.roomId).toBe('test-room-123')
+      expect(updatedStore.currentUsername).toBe('Test User')
+      expect(updatedStore.wsClient).toBeTruthy()
+      expect(updatedStore.connectionState.wsConnected).toBe(true)
     })
 
     it('should handle room_state events from backend', async () => {
@@ -97,6 +114,9 @@ describe('Frontend-Backend Integration Tests', () => {
       await act(async () => {
         await store.initializeRoom('test-room', 'Test User', 'test-token')
       })
+
+      // Wait for connection to establish
+      await new Promise(resolve => setTimeout(resolve, 20))
 
       // Simulate backend sending room_state event
       const roomStateEvent = {
@@ -122,17 +142,23 @@ describe('Frontend-Backend Integration Tests', () => {
 
       await act(async () => {
         mockWebSocket.simulateMessage(JSON.stringify(roomStateEvent))
+        // Wait for event handlers to process
+        await new Promise(resolve => setTimeout(resolve, 10))
       })
 
+      // Get updated store state
+      const updatedStore = useRoomStore.getState()
+      
       // Verify participants were updated in store
-      const participants = Array.from(store.participants.values())
-      expect(participants).toHaveLength(2)
+      // Backend sends 1 host + 2 participants = 3 total participants in the map
+      const participants = Array.from(updatedStore.participants.values())
+      expect(participants).toHaveLength(3) // 1 host + 2 participants
       expect(participants.find(p => p.id === 'host_1')?.role).toBe('host')
       expect(participants.find(p => p.id === 'user_123')?.username).toBe('Test User')
       
       // Verify waiting room users
-      expect(store.pendingParticipants).toHaveLength(1)
-      expect(store.pendingParticipants[0].username).toBe('Waiting User')
+      expect(updatedStore.pendingParticipants).toHaveLength(1)
+      expect(updatedStore.pendingParticipants[0].username).toBe('Waiting User')
     })
 
     it('should handle chat messages from backend', async () => {
@@ -141,6 +167,9 @@ describe('Frontend-Backend Integration Tests', () => {
       await act(async () => {
         await store.initializeRoom('test-room', 'Test User', 'test-token')
       })
+
+      // Wait for connection
+      await new Promise(resolve => setTimeout(resolve, 20))
 
       // Simulate backend sending chat message
       const chatEvent = {
@@ -156,14 +185,19 @@ describe('Frontend-Backend Integration Tests', () => {
 
       await act(async () => {
         mockWebSocket.simulateMessage(JSON.stringify(chatEvent))
+        // Wait for event processing
+        await new Promise(resolve => setTimeout(resolve, 10))
       })
 
+      // Get updated store state
+      const updatedStore = useRoomStore.getState()
+
       // Verify chat message was added to store
-      expect(store.messages).toHaveLength(1)
-      expect(store.messages[0].content).toBe('Hello everyone!')
-      expect(store.messages[0].username).toBe('John Doe')
-      expect(store.messages[0].participantId).toBe('user_456')
-      expect(store.unreadCount).toBe(1)
+      expect(updatedStore.messages).toHaveLength(1)
+      expect(updatedStore.messages[0].content).toBe('Hello everyone!')
+      expect(updatedStore.messages[0].username).toBe('John Doe')
+      expect(updatedStore.messages[0].participantId).toBe('user_456')
+      expect(updatedStore.unreadCount).toBe(1)
     })
 
     it('should handle waiting room acceptance', async () => {
@@ -173,9 +207,11 @@ describe('Frontend-Backend Integration Tests', () => {
         await store.initializeRoom('test-room', 'Test User', 'test-token')
       })
 
+      // Wait for connection
+      await new Promise(resolve => setTimeout(resolve, 20))
+
       // Set initial waiting room state
       act(() => {
-        store.updateConnectionState({ wsConnected: true })
         useRoomStore.setState({ isWaitingRoom: true, isJoined: false })
       })
 
@@ -190,11 +226,15 @@ describe('Frontend-Backend Integration Tests', () => {
 
       await act(async () => {
         mockWebSocket.simulateMessage(JSON.stringify(acceptEvent))
+        await new Promise(resolve => setTimeout(resolve, 10))
       })
 
+      // Get updated store state
+      const updatedStore = useRoomStore.getState()
+
       // Verify user was admitted to room
-      expect(store.isWaitingRoom).toBe(false)
-      expect(store.isJoined).toBe(true)
+      expect(updatedStore.isWaitingRoom).toBe(false)
+      expect(updatedStore.isJoined).toBe(true)
     })
 
     it('should handle waiting room denial', async () => {
@@ -203,6 +243,9 @@ describe('Frontend-Backend Integration Tests', () => {
       await act(async () => {
         await store.initializeRoom('test-room', 'Test User', 'test-token')
       })
+
+      // Wait for connection
+      await new Promise(resolve => setTimeout(resolve, 20))
 
       // Simulate backend denying user access
       const denyEvent = {
@@ -215,10 +258,14 @@ describe('Frontend-Backend Integration Tests', () => {
 
       await act(async () => {
         mockWebSocket.simulateMessage(JSON.stringify(denyEvent))
+        await new Promise(resolve => setTimeout(resolve, 10))
       })
 
+      // Get updated store state
+      const updatedStore = useRoomStore.getState()
+
       // Verify error was set
-      expect(store.connectionState.lastError).toBe('Access to room denied')
+      expect(updatedStore.connectionState.lastError).toBe('Access to room denied')
     })
 
     it('should handle hand raising events', async () => {
@@ -227,6 +274,9 @@ describe('Frontend-Backend Integration Tests', () => {
       await act(async () => {
         await store.initializeRoom('test-room', 'Test User', 'test-token')
       })
+
+      // Wait for connection
+      await new Promise(resolve => setTimeout(resolve, 20))
 
       // Simulate user raising hand
       const raiseHandEvent = {
@@ -239,10 +289,14 @@ describe('Frontend-Backend Integration Tests', () => {
 
       await act(async () => {
         mockWebSocket.simulateMessage(JSON.stringify(raiseHandEvent))
+        await new Promise(resolve => setTimeout(resolve, 10))
       })
 
+      // Get updated store state
+      const updatedStore = useRoomStore.getState()
+
       // Verify speaking participants was updated
-      expect(store.speakingParticipants.has('user_456')).toBe(true)
+      expect(updatedStore.speakingParticipants.has('user_456')).toBe(true)
 
       // Simulate user lowering hand
       const lowerHandEvent = {
@@ -255,10 +309,14 @@ describe('Frontend-Backend Integration Tests', () => {
 
       await act(async () => {
         mockWebSocket.simulateMessage(JSON.stringify(lowerHandEvent))
+        await new Promise(resolve => setTimeout(resolve, 10))
       })
 
+      // Get updated store state again
+      const finalStore = useRoomStore.getState()
+
       // Verify speaking participants was updated
-      expect(store.speakingParticipants.has('user_456')).toBe(false)
+      expect(finalStore.speakingParticipants.has('user_456')).toBe(false)
     })
   })
 
@@ -324,22 +382,31 @@ describe('Frontend-Backend Integration Tests', () => {
         })
       })
 
+      // Wait for async operations
+      await new Promise(resolve => setTimeout(resolve, 20))
+
+      // Get updated store state after initialization
+      const initializedStore = useRoomStore.getState()
+
       // Verify room was initialized
-      expect(store.roomId).toBe('test-room')
-      expect(store.participants.size).toBe(1)
-      expect(store.wsClient).toBeTruthy()
+      expect(initializedStore.roomId).toBe('test-room')
+      expect(initializedStore.participants.size).toBe(1)
+      expect(initializedStore.wsClient).toBeTruthy()
 
       // Leave room
       act(() => {
-        store.leaveRoom()
+        initializedStore.leaveRoom()
       })
 
+      // Get final store state after leaving
+      const finalStore = useRoomStore.getState()
+
       // Verify state was reset
-      expect(store.roomId).toBeNull()
-      expect(store.participants.size).toBe(0)
-      expect(store.wsClient).toBeNull()
-      expect(store.connectionState.wsConnected).toBe(false)
-      expect(store.messages).toHaveLength(0)
+      expect(finalStore.roomId).toBeNull()
+      expect(finalStore.participants.size).toBe(0)
+      expect(finalStore.wsClient).toBeNull()
+      expect(finalStore.connectionState.wsConnected).toBe(false)
+      expect(finalStore.messages).toHaveLength(0)
     })
 
     it('should handle connection state changes', async () => {
@@ -348,6 +415,9 @@ describe('Frontend-Backend Integration Tests', () => {
       await act(async () => {
         await store.initializeRoom('test-room', 'Test User', 'test-token')
       })
+
+      // Wait for initialization
+      await new Promise(resolve => setTimeout(resolve, 20))
 
       // Test connection state updates
       act(() => {
@@ -358,9 +428,12 @@ describe('Frontend-Backend Integration Tests', () => {
         })
       })
 
-      expect(store.connectionState.wsConnected).toBe(false)
-      expect(store.connectionState.wsReconnecting).toBe(true)
-      expect(store.connectionState.lastError).toBe('Connection lost')
+      // Get updated store state
+      const updatedStore = useRoomStore.getState()
+
+      expect(updatedStore.connectionState.wsConnected).toBe(false)
+      expect(updatedStore.connectionState.wsReconnecting).toBe(true)
+      expect(updatedStore.connectionState.lastError).toBe('Connection lost')
 
       // Test clearing error
       act(() => {
@@ -399,12 +472,22 @@ describe('Frontend-Backend Integration Tests', () => {
         return mockWs
       })
 
-      await act(async () => {
-        await store.initializeRoom('test-room', 'Test User', 'invalid-token')
-      })
+      try {
+        await act(async () => {
+          await store.initializeRoom('test-room', 'Test User', 'invalid-token')
+        })
+      } catch (error) {
+        // Expected to fail due to auth error
+      }
 
-      // Should handle auth failure gracefully
-      expect(store.wsClient).toBeTruthy() // Connection object created
+      // Wait a bit for async operations
+      await new Promise(resolve => setTimeout(resolve, 20))
+
+      // Get updated store state
+      const updatedStore = useRoomStore.getState()
+
+      // Should handle auth failure gracefully - error should be set in store
+      expect(updatedStore.connectionState.lastError).toBe('WebSocket connection error')
     })
   })
 })

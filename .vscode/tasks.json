@@ -11,6 +11,30 @@
 				"$tsc",
 				"$eslint-stylish"
 			]
+		},
+		{
+			"label": "Test Frontend",
+			"type": "shell",
+			"command": "cd frontend && npm run test",
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test Integration",
+			"type": "shell",
+			"command": "cd frontend && npm run test:run __tests__/integration/",
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start Backend Dev",
+			"type": "shell",
+			"command": "cd backend/go && go run cmd/v1/session/main.go",
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
 		}
 	]
 }

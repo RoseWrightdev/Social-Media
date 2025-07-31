@@ -12,14 +12,18 @@ import { ParticipantsPanel } from '@/components/panels/participants-panel';
 import { WaitingRoomPanel } from '@/components/panels/waiting-room-panel';
 import { Spinner } from '@/components/core/spinner';
 
-interface RoomPageProps {
-  token?: string; // JWT token for authentication
-}
-
-export default function RoomPage({ token }: RoomPageProps) {
+export default function RoomPage() {
   const params = useParams();
   const router = useRouter();
   const roomId = params?.roomid as string;
+  
+  // Get token from localStorage for authentication
+  const [token, setToken] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const storedToken = localStorage.getItem('authToken');
+    setToken(storedToken);
+  }, []);
 
   // Local state
   const [username, setUsername] = useState('');

@@ -352,6 +352,11 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           }));
         });
 
+        // Error handlers
+        wsClient.onError((error: Error) => {
+          get().handleError(error.message);
+        });
+
         // Connect WebSocket
         await wsClient.connect();
 
