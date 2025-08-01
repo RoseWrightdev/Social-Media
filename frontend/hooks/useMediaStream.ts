@@ -100,7 +100,7 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
     availableDevices,                   // Available cameras, microphones, speakers
     selectedDevices,                    // Currently selected device IDs
     webrtcManager,                      // WebRTC manager for peer connections
-    
+
     // Actions from room store
     toggleAudio,                        // Global audio toggle action
     toggleVideo,                        // Global video toggle action
@@ -113,7 +113,7 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
   } = useRoomStore();
 
   // =================== STREAM INITIALIZATION ===================
-  
+
   /**
    * INITIALIZE STREAM - Core function for creating media streams
    * 
@@ -131,12 +131,9 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
     // =================== GUARD CLAUSES ===================
     // Prevent duplicate initialization attempts
     if (state.isStarting || state.isInitialized) {
-      console.log('🔄 Stream initialization already in progress or completed');
       return;
     }
 
-    console.log('🎬 Starting media stream initialization...');
-    
     // Set starting state to prevent concurrent initialization
     setState(prev => ({ ...prev, isStarting: true, error: null }));
 
@@ -144,7 +141,6 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
       // =================== DEVICE ENUMERATION ===================
       // First, refresh the list of available devices
       // This also requests basic permissions which helps with device enumeration
-      console.log('📱 Refreshing available media devices...');
       await refreshDevices();
 
       // =================== CONSTRAINT BUILDING ===================
@@ -153,59 +149,42 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
 
       // Configure audio constraints
       if (audio && availableDevices.microphones.length > 0) {
-        console.log('🎤 Configuring audio constraints...');
-        
+
         // Start with provided audio settings
         constraints.audio = typeof audio === 'boolean' ? true : audio;
-        
+
         // If a specific microphone is selected, use it
         if (selectedDevices.microphone) {
-          console.log('🎯 Using selected microphone:', selectedDevices.microphone);
           constraints.audio = {
             ...(typeof audio === 'object' ? audio : {}),
             deviceId: { exact: selectedDevices.microphone }
           };
         }
       } else if (audio) {
-        console.warn('⚠️ Audio requested but no microphones available');
+        console.warn('Audio requested but no microphones available');
       }
 
       // Configure video constraints
       if (video && availableDevices.cameras.length > 0) {
-        console.log('📹 Configuring video constraints...');
-        
         // Start with provided video settings
         constraints.video = typeof video === 'boolean' ? true : video;
-        
+
         // If a specific camera is selected, use it
         if (selectedDevices.camera) {
-          console.log('🎯 Using selected camera:', selectedDevices.camera);
           constraints.video = {
             ...(typeof video === 'object' ? video : {}),
             deviceId: { exact: selectedDevices.camera }
           };
         }
       } else if (video) {
-        console.warn('⚠️ Video requested but no cameras available');
+        console.warn('Video requested but no cameras available');
       }
-
-      console.log('⚙️ Final media constraints:', constraints);
-
-      console.log('⚙️ Final media constraints:', constraints);
-
       // =================== MEDIA STREAM CREATION ===================
       // Request user media with the built constraints
-      console.log('🎥 Requesting user media access...');
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      
+
       // Store stream in local reference for immediate use
       streamRef.current = stream;
-      
-      console.log('✅ Media stream created successfully:', {
-        videoTracks: stream.getVideoTracks().length,
-        audioTracks: stream.getAudioTracks().length,
-        id: stream.id
-      });
 
       // =================== ROOM STORE INTEGRATION ===================
       // Note: The stream should be integrated with room store for WebRTC sharing
@@ -223,26 +202,25 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
         error: null,                       // Clear any previous errors
       }));
 
-      console.log('🎉 Media stream initialization completed successfully');
       return stream;
-      
+
     } catch (error) {
       // =================== ERROR HANDLING ===================
       console.error('💥 Failed to initialize media stream:', error);
-      
+
       // Create user-friendly error message
       const errorMessage = error instanceof Error ? error.message : 'Failed to initialize media stream';
-      
+
       // Update local state with error
       setState(prev => ({
         ...prev,
         isStarting: false,                 // No longer starting
         error: errorMessage,               // Store error message
       }));
-      
+
       // Propagate error to room store for global error handling
       handleError(errorMessage);
-      
+
       // Re-throw error so caller can handle it if needed
       throw error;
     }
@@ -263,7 +241,7 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
   ]);
 
   // =================== STREAM CLEANUP ===================
-  
+
   /**
    * CLEANUP - Stop and release all media resources
    * 
@@ -277,15 +255,14 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
    */
   const cleanup = useCallback(() => {
     console.log('🧹 Cleaning up media stream...');
-    
+
     // =================== STREAM CLEANUP ===================
     if (streamRef.current) {
       // Stop all tracks to release hardware resources
       streamRef.current.getTracks().forEach(track => {
         track.stop();
-        console.log(`🛑 Stopped ${track.kind} track: ${track.label}`);
       });
-      
+
       // Clear the stream reference
       streamRef.current = null;
     }
@@ -297,12 +274,10 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
       isStarting: false,
       error: null,
     });
-    
-    console.log('✅ Media stream cleanup completed');
   }, []);
 
   // =================== STREAM RESTART ===================
-  
+
   /**
    * RESTART STREAM - Reinitialize stream with new constraints
    * 
@@ -312,26 +287,24 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
    * @param newOptions - Optional new configuration for restart
    */
   const restartStream = useCallback(async (newOptions?: MediaStreamOptions) => {
-    console.log('🔄 Restarting media stream...', newOptions);
-    
     // Clean up current stream
     cleanup();
-    
+
     // =================== OPTION HANDLING ===================
     // Note: Current implementation doesn't dynamically update constraints
     // This would require refactoring to make constraints reactive to options
     if (newOptions) {
-      console.warn('⚠️ New options provided to restartStream, but dynamic constraint updates not fully implemented');
+      console.warn('New options provided to restartStream, but dynamic constraint updates not fully implemented');
       // TODO: Implement dynamic constraint updates
       // This would involve making the hook reactive to option changes
     }
-    
+
     // Reinitialize with current (or new) options
     return initializeStream();
   }, [cleanup, initializeStream]);
 
   // =================== PERMISSION MANAGEMENT ===================
-  
+
   /**
    * REQUEST PERMISSIONS - Explicitly request media permissions
    * 
@@ -341,47 +314,39 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
    * @returns Promise<boolean> - Whether permissions were granted
    */
   const requestPermissions = useCallback(async () => {
-    console.log('🔐 Requesting media permissions...');
-    
+
     try {
       // =================== CAMERA PERMISSION ===================
       if (video) {
-        console.log('📹 Requesting camera permission...');
         const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
         // Stop immediately - we just wanted permission
         videoStream.getTracks().forEach(track => track.stop());
       }
-      
+
       // =================== MICROPHONE PERMISSION ===================
       if (audio) {
-        console.log('🎤 Requesting microphone permission...');
         const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         // Stop immediately - we just wanted permission
         audioStream.getTracks().forEach(track => track.stop());
       }
-      
+
       // =================== DEVICE REFRESH ===================
       // Refresh device list now that we have permissions
       // This will populate device names and IDs properly
-      console.log('📱 Refreshing device list after permission grant...');
       await refreshDevices();
-      
-      console.log('✅ Media permissions granted successfully');
+
       return true;
-      
+
     } catch (error) {
-      console.error('❌ Media permissions denied:', error);
-      
       const errorMessage = 'Media permissions denied. Please allow camera and microphone access.';
       setState(prev => ({ ...prev, error: errorMessage }));
       handleError(errorMessage);
-      
       return false;
     }
   }, [video, audio, refreshDevices, handleError]);
 
   // =================== STREAM STATUS CHECKS ===================
-  
+
   /**
    * IS CAMERA ACTIVE - Check if camera is currently active
    * 
@@ -399,7 +364,7 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
   const isMicrophoneActive = streamRef.current?.getAudioTracks().some(track => track.enabled) ?? false;
 
   // =================== STREAM STATISTICS ===================
-  
+
   /**
    * GET STREAM STATS - Comprehensive stream information
    * 
@@ -413,7 +378,6 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
   const getStreamStats = useCallback(() => {
     const stream = streamRef.current;
     if (!stream) {
-      console.log('📊 No stream available for stats');
       return null;
     }
 
@@ -424,7 +388,7 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
       // Stream-level information
       streamId: stream.id,
       active: stream.active,
-      
+
       // Video track information
       video: {
         count: videoTracks.length,
@@ -433,7 +397,7 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
         constraints: videoTracks[0]?.getConstraints(),
         label: videoTracks[0]?.label,
       },
-      
+
       // Audio track information
       audio: {
         count: audioTracks.length,
@@ -443,13 +407,11 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
         label: audioTracks[0]?.label,
       },
     };
-
-    console.log('📊 Stream statistics:', stats);
     return stats;
   }, []);
 
   // =================== EFFECT HOOKS ===================
-  
+
   /**
    * AUTO-INITIALIZATION EFFECT
    * 
@@ -458,7 +420,6 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
    */
   useEffect(() => {
     if (autoStart && !state.isInitialized && !state.isStarting) {
-      console.log('🎬 Auto-starting media stream...');
       initializeStream();
     }
   }, [autoStart, initializeStream, state.isInitialized, state.isStarting]);
@@ -482,13 +443,12 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
    */
   useEffect(() => {
     const handleDeviceChange = () => {
-      console.log('🔌 Media device change detected, refreshing device list...');
       refreshDevices();
     };
 
     // Listen for device changes
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
-    
+
     // Cleanup listener on unmount
     return () => {
       navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
@@ -496,7 +456,7 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
   }, [refreshDevices]);
 
   // =================== RETURN VALUE ===================
-  
+
   /**
    * HOOK RETURN VALUE
    * 
@@ -516,14 +476,14 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
     isScreenSharing,                      // Global screen sharing state
     availableDevices,                     // Available media devices
     selectedDevices,                      // Currently selected devices
-    
+
     // =================== LOCAL STATE ===================
     isInitialized: state.isInitialized,  // Whether local stream is initialized
     isStarting: state.isStarting,        // Whether initialization is in progress
     error: state.error,                  // Local error state
     isCameraActive,                      // Whether camera is active in local stream
     isMicrophoneActive,                  // Whether microphone is active in local stream
-    
+
     // =================== GLOBAL ACTIONS FROM ROOM STORE ===================
     toggleAudio,                         // Toggle global audio state
     toggleVideo,                         // Toggle global video state
@@ -532,7 +492,7 @@ export const useMediaStream = (options: MediaStreamOptions = {}) => {
     switchCamera,                        // Switch to different camera
     switchMicrophone,                    // Switch to different microphone
     refreshDevices,                      // Refresh available device list
-    
+
     // =================== LOCAL ACTIONS ===================
     initializeStream,                    // Initialize local media stream
     cleanup,                             // Clean up local stream and state
