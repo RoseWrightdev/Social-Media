@@ -157,9 +157,7 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
    * Utility function to clean up all active timers and prevent
    * memory leaks when component unmounts or connection changes.
    */
-  const clearAllTimers = useCallback(() => {
-    console.log('🧹 Clearing all connection timers...');
-    
+  const clearAllTimers = useCallback(() => {    
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = null;
@@ -187,7 +185,6 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
   const updateConnectionState = useCallback((updates: Partial<ConnectionState>) => {
     setConnectionState(prev => {
       const newState = { ...prev, ...updates };
-      console.log(`🔄 Connection state: ${prev.status} → ${newState.status}`, newState);
       return newState;
     });
   }, []);
@@ -233,10 +230,8 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
         latency,
         quality,
       });
-
-      console.log(`💓 Connection health check: ${latency.toFixed(0)}ms (${quality})`);
     } catch (error) {
-      console.error('💔 Health check failed:', error);
+      console.error('Health check failed:', error);
       // Don't update state on heartbeat failure unless connection is lost
     }
   }, [wsClient, roomConnectionState.wsConnected, connectionState.retryCount, calculateConnectionQuality, updateConnectionState]);
@@ -247,9 +242,7 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
    * Begins periodic heartbeat monitoring for connection health.
    * Helps detect connection issues before they become critical.
    */
-  const startHeartbeat = useCallback(() => {
-    console.log(`💓 Starting heartbeat monitoring (${heartbeatInterval}ms interval)`);
-    
+  const startHeartbeat = useCallback(() => {    
     heartbeatIntervalRef.current = setInterval(performHeartbeat, heartbeatInterval);
   }, [performHeartbeat, heartbeatInterval]);
 
@@ -278,23 +271,19 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
   const connect = useCallback(async (): Promise<boolean> => {
     // Prevent concurrent connection attempts
     if (connectionAttemptRef.current) {
-      console.log('⏳ Connection attempt already in progress...');
       return connectionAttemptRef.current;
     }
 
     if (!roomId || !currentUsername) {
       const error = 'Missing roomId or username for connection';
-      console.error('❌ Connection failed:', error);
+      console.error('Connection failed:', error);
       updateConnectionState({ 
         status: 'failed', 
         lastError: error,
         lastAttempt: Date.now(),
       });
       return false;
-    }
-
-    console.log(`🔌 Connecting to room: ${roomId} as ${currentUsername}`);
-    
+    }    
     // Create connection promise
     const connectionPromise = (async (): Promise<boolean> => {
       try {
@@ -324,11 +313,8 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
           connectionTimeoutRef.current = null;
         }
 
-        console.log('✅ Room initialized successfully');
-
         // Join the room
         await joinRoom();
-        console.log('🚪 Joined room successfully');
 
         // Update state to connected
         updateConnectionState({
@@ -346,7 +332,7 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown connection error';
-        console.error('❌ Connection failed:', errorMessage);
+        console.error('Connection failed:', errorMessage);
 
         updateConnectionState({
           status: 'failed',
@@ -392,9 +378,8 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
     
     try {
       await leaveRoom();
-      console.log('🚪 Left room successfully');
     } catch (error) {
-      console.error('⚠️ Error leaving room:', error);
+      console.error('Error leaving room:', error);
     }
 
     updateConnectionState({
@@ -414,7 +399,7 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
    */
   const retry = useCallback(async () => {
     if (connectionState.retryCount >= maxRetries) {
-      console.error(`❌ Max retries (${maxRetries}) exceeded, giving up`);
+      console.error(`Max retries (${maxRetries}) exceeded, giving up`);
       updateConnectionState({ 
         status: 'failed',
         lastError: `Max retries (${maxRetries}) exceeded`,
@@ -423,15 +408,12 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
     }
 
     const delay = retryDelay * Math.pow(2, connectionState.retryCount); // Exponential backoff
-    console.log(`🔄 Retrying connection in ${delay}ms (attempt ${connectionState.retryCount + 1}/${maxRetries})`);
-
     updateConnectionState({
       status: 'reconnecting',
       retryCount: connectionState.retryCount + 1,
     });
 
     retryTimeoutRef.current = setTimeout(async () => {
-      console.log(`🔄 Executing retry attempt ${connectionState.retryCount}`);
       const success = await connect();
       
       if (!success && autoReconnect) {
@@ -448,7 +430,6 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
    * Useful for recovering from connection issues.
    */
   const reconnect = useCallback(async () => {
-    console.log('🔄 Force reconnecting...');
     await disconnect();
     
     // Small delay before reconnecting
@@ -469,17 +450,14 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
     const { wsConnected, wsReconnecting, lastError } = roomConnectionState;
 
     if (wsConnected && connectionState.status !== 'connected') {
-      console.log('🔗 WebSocket connected, updating state');
       updateConnectionState({ status: 'connected' });
       
       if (!heartbeatIntervalRef.current) {
         startHeartbeat();
       }
     } else if (!wsConnected && connectionState.status === 'connected') {
-      console.log('🔗 WebSocket disconnected');
       
       if (autoReconnect && isJoined) {
-        console.log('🔄 Auto-reconnect enabled, starting retry...');
         retry();
       } else {
         updateConnectionState({ status: 'disconnected' });
@@ -487,7 +465,6 @@ export const useRoomConnection = (options: UseRoomConnectionOptions = {}) => {
     }
 
     if (wsReconnecting && connectionState.status !== 'reconnecting') {
-      console.log('🔄 WebSocket reconnecting...');
       updateConnectionState({ status: 'reconnecting' });
     }
 
@@ -633,7 +610,6 @@ export const useRoomUI = () => {
    * Makes the intention more explicit in component code.
    */
   const unpinParticipant = useCallback(() => {
-    console.log('📌 Unpinning participant');
     pinParticipant(null);
   }, [pinParticipant]);
 
