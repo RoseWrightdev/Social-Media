@@ -349,6 +349,8 @@ components:
         - "answer"
         - "candidate"
         - "renegotiate"
+        # Room State Events
+        - "room_state"
       description: |-
         All possible event types that can be sent or received via WebSocket.
         Events determine how the payload should be interpreted and which
@@ -359,6 +361,9 @@ components:
         - **answer**: WebRTC answer responding to an offer
         - **candidate**: ICE candidate for connectivity establishment
         - **renegotiate**: Request to renegotiate connection (for adding/removing streams)
+        
+        **Room State Events:**
+        - **room_state**: Complete room state synchronization (server-to-client only)
 
     # Role Types
     RoleType:
