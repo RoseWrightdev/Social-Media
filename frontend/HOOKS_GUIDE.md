@@ -91,6 +91,129 @@ export const config = {
 };
 ```
 
+### Step 3: Basic Hook Setup
+
+Before diving into complex components, let's understand the basic hook setup and initialization patterns.
+
+```tsx
+// components/HookSetupExample.tsx
+import React, { useEffect } from 'react';
+import { useRoomConnection } from '../hooks/useRoomConnection';
+import { useMediaStream } from '../hooks/useMediaStream';
+import { useRoom } from '../hooks/useRoom';
+
+export const HookSetupExample = () => {
+  // 1. Connection Hook - Foundation layer
+  // This hook manages WebSocket connections and network health
+  const {
+    connect,          // Function to establish WebSocket connection
+    disconnect,       // Function to close connection cleanly
+    isConnected,      // Boolean: is WebSocket currently connected?
+    connectionState   // Object: detailed connection status and metrics
+  } = useRoomConnection({
+    // Optional configuration object
+    autoReconnect: true,    // Automatically reconnect on disconnect
+    maxRetries: 5,          // Maximum connection retry attempts
+    retryDelay: 2000        // Delay between retry attempts (ms)
+  });
+
+  // 2. Media Hook - Hardware layer
+  // This hook manages camera, microphone, and local media streams
+  const {
+    initializeStream, // Function to request camera/microphone access
+    localStream,      // MediaStream object containing audio/video tracks
+    isInitialized,    // Boolean: is media stream ready for use?
+    cleanup          // Function to release media resources
+  } = useMediaStream({
+    // Media constraints and configuration
+    autoStart: false,       // Don't start media automatically
+    video: true,           // Enable video capture
+    audio: true            // Enable audio capture
+  });
+
+  // 3. Room Hook - Application layer
+  // This hook manages high-level room operations and state
+  const {
+    joinRoom,         // Function to join a specific room
+    exitRoom,         // Function to leave the current room
+    isJoined,         // Boolean: has user successfully joined a room?
+    isRoomReady      // Boolean: is room fully operational?
+  } = useRoom();
+
+  // Cleanup effect - ESSENTIAL for preventing resource leaks
+  useEffect(() => {
+    // Return cleanup function that runs on component unmount
+    return () => {
+      cleanup();      // Release camera and microphone
+      disconnect();   // Close WebSocket connection
+      exitRoom();     // Leave room cleanly
+    };
+  }, [cleanup, disconnect, exitRoom]);
+
+  // Basic connection demonstration
+  const handleBasicSetup = async () => {
+    try {
+      console.log('Step 1: Connecting to server...');
+      await connect();
+      
+      console.log('Step 2: Initializing media...');
+      await initializeStream();
+      
+      console.log('Step 3: Joining room...');
+      await joinRoom('demo-room', 'Test User');
+      
+      console.log('✓ Setup complete!');
+    } catch (error) {
+      console.error('Setup failed:', error);
+    }
+  };
+
+  return (
+    <div className="p-4 max-w-md mx-auto">
+      <h2 className="text-xl font-bold mb-4">Hook Setup Example</h2>
+      
+      {/* Status Display */}
+      <div className="mb-4 p-3 bg-gray-100 rounded">
+        <h3 className="font-semibold mb-2">Current Status</h3>
+        <div className="text-sm space-y-1">
+          <p>WebSocket: {isConnected ? '✓ Connected' : '✗ Disconnected'}</p>
+          <p>Media: {isInitialized ? '✓ Ready' : '✗ Not initialized'}</p>
+          <p>Room: {isRoomReady ? '✓ Joined' : '✗ Not joined'}</p>
+        </div>
+      </div>
+
+      {/* Action Button */}
+      <button
+        onClick={handleBasicSetup}
+        disabled={isRoomReady}
+        className="w-full px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-400"
+      >
+        {isRoomReady ? 'Setup Complete' : 'Start Setup Process'}
+      </button>
+
+      {/* Hook Configuration Info */}
+      <div className="mt-4 p-3 bg-blue-50 rounded text-sm">
+        <h4 className="font-semibold mb-2">Hook Configuration Tips:</h4>
+        <ul className="space-y-1 text-gray-700">
+          <li>• Always configure hooks before using them</li>
+          <li>• Use autoStart: false for manual control</li>
+          <li>• Implement cleanup in useEffect</li>
+          <li>• Check connection status before operations</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+```
+
+**Key Setup Concepts:**
+
+- **Hook Order**: Connection → Media → Room (dependency chain)
+- **Configuration**: Each hook accepts optional configuration objects
+- **Cleanup**: Always implement proper resource cleanup
+- **Error Handling**: Wrap async operations in try-catch blocks
+- **Status Checking**: Verify hook states before proceeding
+
 ### Step 4: Connection State Monitoring
 
 Before building components, understand connection states and monitoring.
