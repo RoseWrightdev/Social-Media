@@ -25,6 +25,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	"Social-Media/backend/go/internal/v1/auth"
@@ -145,11 +146,14 @@ func (h *Hub) ServeWs(c *gin.Context) {
 	roomId := c.Param("roomId")
 	room := h.getOrCreateRoom(RoomIdType(roomId))
 
-	// todo: **ACTION REQUIRED:** Add a custom claim for 'name' or 'nickname'
-	// to Auth0 token via an Auth0 Action.
 	displayName := claims.Subject // Fallback to subject if name is not in token
 	if claims.Name != "" {
 		displayName = claims.Name
+	} else if claims.Email != "" {
+		// Use email prefix as display name
+		if parts := strings.Split(claims.Email, "@"); len(parts) > 0 {
+			displayName = parts[0]
+		}
 	}
 
 	client := &Client{

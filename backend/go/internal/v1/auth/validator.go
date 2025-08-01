@@ -14,9 +14,10 @@ import (
 // CustomClaims represents custom JWT claims used for authentication.
 // It embeds jwt.RegisteredClaims and adds a Scope field to specify the user's access scope.
 type CustomClaims struct {
-	Scope string `json:"scope"`
-	Name  string `json:"name,omitempty"`
-	jwt.RegisteredClaims
+    Scope string `json:"scope"`
+    Name  string `json:"name,omitempty"`
+    Email string `json:"email,omitempty"`
+    jwt.RegisteredClaims
 }
 
 // Validator provides JWT validation functionality, including key retrieval,
