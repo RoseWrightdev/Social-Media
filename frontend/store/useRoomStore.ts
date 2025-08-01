@@ -344,7 +344,7 @@ export const useRoomStore = create<RoomState & RoomActions>()(
         // Create WebSocket client with production endpoint matching Go backend routes
         // This connects to the session handler in /backend/go/cmd/v1/session/
         const wsClient = new WebSocketClient({
-          url: `ws://localhost:8080/ws/zoom/${roomId}`, // ✅ Matches Go backend route pattern
+          url: `ws://localhost:8080/ws/zoom/${roomId}`, // Matches Go backend route pattern
           token,                                        // JWT for Auth0 authentication
           autoReconnect: true,                         // Automatically reconnect if connection drops
           reconnectInterval: 3000,                     // Wait 3 seconds between reconnection attempts
@@ -360,7 +360,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
          * Updates the message list and unread count for UI notifications.
          */
         wsClient.on('add_chat', (message) => {
-          console.log('💬 Received chat message:', message);
           const chatPayload = message.payload as ChatPayload;
           
           // Convert backend chat format to our internal message format
@@ -395,7 +394,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
          * The payload contains complete participant lists organized by role.
          */
         wsClient.on('room_state', (message) => {
-          console.log('🏠 Received room state update:', message);
           const payload = message.payload as any; // RoomStatePayload from Go backend
           
           // =================== PARTICIPANTS MAP CONSTRUCTION ===================
@@ -442,12 +440,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
             isSpeaking: false,
             lastActivity: new Date(),
           })) || [];
-
-          console.log('👥 Updated participants:', {
-            active: participantsMap.size,
-            waiting: waitingParticipants.length,
-            isCurrentUserHost: payload.hosts?.some((h: any) => h.clientId === clientInfo.clientId)
-          });
 
           // =================== STATE UPDATE ===================
           // Update store with new participant data and host status
@@ -529,7 +521,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
          * The WebRTCManager will process this and generate an "answer".
          */
         wsClient.on('offer', (message) => {
-          console.log('📡 Received WebRTC offer:', message);
           if (get().webrtcManager) {
             // WebRTCManager handles the technical details of offer processing
             // This includes creating an answer and setting up the peer connection
@@ -544,7 +535,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
          * An "answer" confirms the other peer's media capabilities and completes connection setup.
          */
         wsClient.on('answer', (message) => {
-          console.log('📡 Received WebRTC answer:', message);
           if (get().webrtcManager) {
             // WebRTCManager will complete the connection establishment
             // TODO: Call webrtcManager.handleAnswer(message) when WebRTCManager is implemented
@@ -559,7 +549,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
          * efficient route for media streaming between peers.
          */
         wsClient.on('candidate', (message) => {
-          console.log('🧊 Received ICE candidate:', message);
           if (get().webrtcManager) {
             // ICE candidates help establish the optimal network path for media streaming
             // TODO: Call webrtcManager.handleCandidate(message) when WebRTCManager is implemented
@@ -646,7 +635,7 @@ export const useRoomStore = create<RoomState & RoomActions>()(
         
         // Validate that we have the necessary connections
         if (!wsClient || !clientInfo) {
-          console.error(' Cannot join room: WebSocket or client info not available');
+          console.error('Cannot join room: WebSocket or client info not available');
           get().handleError('Connection not ready. Please try again.');
           return;
         }
@@ -940,7 +929,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           const videoTracks = localStream.getVideoTracks();
           videoTracks.forEach(track => {
             track.enabled = !isVideoEnabled;
-            console.log(`📺 Video track ${track.enabled ? 'enabled' : 'disabled'}`);
           });
           
           // Update state to reflect new video status
@@ -1038,7 +1026,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
             // Add new video track
             if (newVideoTrack) {
               localStream.addTrack(newVideoTrack);
-              console.log('➕ Added new video track from selected camera');
             }
           }
           
@@ -1085,7 +1072,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
             // Add new audio track
             if (newAudioTrack) {
               localStream.addTrack(newAudioTrack);
-              console.log('➕ Added new audio track from selected microphone');
             }
           }
           
@@ -1146,8 +1132,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           get().handleError('Connection not ready. Please try again.');
           return;
         }
-
-        console.log('💬 Sending message:', { content, type, targetId });
         
         // Send message via WebSocket to backend using existing sendChat method
         // Backend will broadcast to appropriate recipients based on room membership
