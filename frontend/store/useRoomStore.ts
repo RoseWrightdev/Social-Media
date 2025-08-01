@@ -331,7 +331,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
         // =================== CLEANUP EXISTING CONNECTIONS ===================
         // Clean up any existing connections to prevent memory leaks and connection conflicts
         if (state.wsClient) {
-          console.log('🧹 Cleaning up existing WebSocket connection');
           state.wsClient.disconnect();
         }
 
@@ -343,7 +342,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           displayName: username,
         };
 
-        console.log('👤 Created client info:', clientInfo);
 
         // =================== WEBSOCKET CONNECTION SETUP ===================
         // Create WebSocket client with production endpoint matching Go backend routes
@@ -356,7 +354,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           maxReconnectAttempts: 5,                     // Give up after 5 failed attempts
         });
 
-        console.log('🔌 Created WebSocket client for room:', roomId);
 
         // =================== CHAT EVENT HANDLERS ===================
         
@@ -475,7 +472,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
          * Transitions user from waiting room to active participant status.
          */
         wsClient.on('accept_waiting', (message) => {
-          console.log('✅ Approved to join room');
           set({ isWaitingRoom: false, isJoined: true });
         });
 
@@ -486,7 +482,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
          * Displays error message and prevents further join attempts.
          */
         wsClient.on('deny_waiting', (message) => {
-          console.log('❌ Denied access to room');
           get().handleError('Access to room denied by host');
         });
 
@@ -544,7 +539,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           if (get().webrtcManager) {
             // WebRTCManager handles the technical details of offer processing
             // This includes creating an answer and setting up the peer connection
-            console.log('🔄 Forwarding offer to WebRTC manager for processing');
             // TODO: Call webrtcManager.handleOffer(message) when WebRTCManager is implemented
           }
         });
@@ -559,7 +553,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           console.log('📡 Received WebRTC answer:', message);
           if (get().webrtcManager) {
             // WebRTCManager will complete the connection establishment
-            console.log('🔄 Forwarding answer to WebRTC manager for processing');
             // TODO: Call webrtcManager.handleAnswer(message) when WebRTCManager is implemented
           }
         });
@@ -575,7 +568,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           console.log('🧊 Received ICE candidate:', message);
           if (get().webrtcManager) {
             // ICE candidates help establish the optimal network path for media streaming
-            console.log('🔄 Forwarding ICE candidate to WebRTC manager');
             // TODO: Call webrtcManager.handleCandidate(message) when WebRTCManager is implemented
           }
         });
@@ -589,7 +581,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
          * Provides real-time feedback to users about their connection status.
          */
         wsClient.onConnectionChange?.((connectionState: string) => {
-          console.log('🔗 WebSocket connection state changed:', connectionState);
           
           // Update connection state for UI indicators (online/offline badges, etc)
           set((state) => ({
@@ -615,14 +606,11 @@ export const useRoomStore = create<RoomState & RoomActions>()(
         // =================== CONNECTION ESTABLISHMENT ===================
         
         try {
-          console.log('🔌 Establishing WebSocket connection...');
           // Connect to the Go backend WebSocket endpoint
           await wsClient.connect();
-          console.log('✅ WebSocket connected successfully');
 
           // =================== WEBRTC MANAGER INITIALIZATION ===================
           // Create WebRTC manager for peer-to-peer media streaming between participants
-          console.log('🎥 Initializing WebRTC manager...');
           const webrtcManager = new WebRTCManager(clientInfo, wsClient);
 
           // =================== CONNECTION STATE UPDATE ===================
@@ -633,7 +621,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
 
           // =================== DEVICE ENUMERATION ===================
           // Get list of available cameras, microphones, and speakers
-          console.log('🎤 Refreshing available media devices...');
           await get().refreshDevices();
 
           // =================== FINAL STATE UPDATE ===================
@@ -646,7 +633,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
             clientInfo,                // Store client identification info
           });
 
-          console.log('🎉 Room initialization completed successfully');
           
         } catch (error) {
           console.error('💥 Failed to initialize room:', error);
@@ -674,7 +660,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
         }
 
         try {
-          console.log('🚪 Requesting to join room...');
           
           // Send join request to backend via WebSocket
           // This uses the existing requestWaiting method which may place user in waiting room
@@ -683,7 +668,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           // Optimistically update state - backend will send room_state events to correct if needed
           set({ isJoined: true, isWaitingRoom: false });
           
-          console.log('📤 Join room request sent successfully');
           
         } catch (error) {
           console.error('💥 Failed to join room:', error);
@@ -706,32 +690,26 @@ export const useRoomStore = create<RoomState & RoomActions>()(
         // =================== MEDIA STREAM CLEANUP ===================
         // Stop all media streams to release camera/microphone hardware
         if (localStream) {
-          console.log('📹 Stopping local media stream');
           localStream.getTracks().forEach(track => {
             track.stop(); // This releases the camera/microphone
-            console.log(`🛑 Stopped ${track.kind} track`);
           });
         }
         
         if (screenShareStream) {
-          console.log('🖥️ Stopping screen share stream');
           screenShareStream.getTracks().forEach(track => {
             track.stop(); // This stops screen sharing
-            console.log(`🛑 Stopped screen share ${track.kind} track`);
           });
         }
 
         // =================== WEBRTC CLEANUP ===================
         // Clean up all peer connections and WebRTC resources
         if (webrtcManager) {
-          console.log('🔗 Cleaning up WebRTC connections');
           webrtcManager.cleanup();
         }
 
         // =================== WEBSOCKET CLEANUP ===================
         // Disconnect from backend and stop receiving events
         if (wsClient) {
-          console.log('🔌 Disconnecting WebSocket');
           wsClient.disconnect();
         }
 
@@ -784,7 +762,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           clientInfo: null,
         });
 
-        console.log('✅ Room cleanup completed successfully');
       },
 
       // =================== ROOM SETTINGS MANAGEMENT ===================
@@ -797,7 +774,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        * and broadcast changes to all participants via WebSocket.
        */
       updateRoomSettings: (settings: Partial<RoomSettings>) => {
-        console.log('⚙️ Updating room settings:', settings);
         
         // For now, just update local state
         // TODO: Send settings update to backend when room management API is implemented
@@ -815,7 +791,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        * Updates the participants map and triggers UI re-renders.
        */
       addParticipant: (participant: Participant) => {
-        console.log('👤 Adding participant:', participant.username, participant.id);
         
         set((state) => {
           const newParticipants = new Map(state.participants);
@@ -831,7 +806,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        * any UI selections or pinning related to that participant.
        */
       removeParticipant: (participantId: string) => {
-        console.log('👤 Removing participant:', participantId);
         
         set((state) => {
           // Remove from participants map
@@ -859,7 +833,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        * Used for real-time updates of participant state from backend events.
        */
       updateParticipant: (participantId: string, updates: Partial<Participant>) => {
-        console.log('👤 Updating participant:', participantId, updates);
         
         set((state) => {
           const newParticipants = new Map(state.participants);
@@ -883,7 +856,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        * In full implementation, this would send approval command to backend.
        */
       approveParticipant: (participantId: string) => {
-        console.log('✅ Approving participant:', participantId);
         
         // Remove from pending list (backend will send room_state update with full participants)
         set((state) => ({
@@ -900,7 +872,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        * In full implementation, this would send kick command to backend.
        */
       kickParticipant: (participantId: string) => {
-        console.log('❌ Kicking participant:', participantId);
         
         // Remove participant immediately from local state
         get().removeParticipant(participantId);
@@ -938,7 +909,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
         const participant = get().participants.get(participantId);
         
         if (participant) {
-          console.log('📹 Toggling video for participant:', participantId, 'current:', participant.isVideoEnabled);
           
           get().updateParticipant(participantId, {
             isVideoEnabled: !participant.isVideoEnabled
@@ -959,7 +929,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
       toggleAudio: async () => {
         const { localStream, isAudioEnabled } = get();
         
-        console.log('🎤 Toggling local audio, current state:', isAudioEnabled);
         
         if (localStream) {
           // Enable/disable all audio tracks in the local stream
@@ -986,7 +955,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
       toggleVideo: async () => {
         const { localStream, isVideoEnabled } = get();
         
-        console.log('📹 Toggling local video, current state:', isVideoEnabled);
         
         if (localStream) {
           // Enable/disable all video tracks in the local stream
@@ -1012,7 +980,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        */
       startScreenShare: async () => {
         try {
-          console.log('🖥️ Starting screen share...');
           
           // Request screen sharing permission from browser
           // This will show browser's screen picker dialog
@@ -1024,7 +991,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           // Set up automatic cleanup when user stops sharing
           // This triggers when user clicks "Stop sharing" in browser UI
           screenStream.getVideoTracks()[0].onended = () => {
-            console.log('🛑 Screen share ended by user via browser controls');
             get().stopScreenShare();
           };
 
@@ -1034,7 +1000,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
             isScreenSharing: true 
           });
           
-          console.log('✅ Screen share started successfully');
           
         } catch (error) {
           console.error('💥 Failed to start screen share:', error);
@@ -1049,7 +1014,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        * Can be called manually or automatically when user stops sharing.
        */
       stopScreenShare: async () => {
-        console.log('🛑 Stopping screen share...');
         
         const { screenShareStream } = get();
         
@@ -1057,7 +1021,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
         if (screenShareStream) {
           screenShareStream.getTracks().forEach(track => {
             track.stop();
-            console.log(`🛑 Stopped screen share ${track.kind} track`);
           });
         }
 
@@ -1067,7 +1030,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           isScreenSharing: false 
         });
         
-        console.log('✅ Screen share stopped successfully');
       },
 
       /**
@@ -1078,7 +1040,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        */
       switchCamera: async (deviceId: string) => {
         try {
-          console.log('📹 Switching to camera device:', deviceId);
           
           // Get new video stream from selected camera
           const newStream = await navigator.mediaDevices.getUserMedia({
@@ -1097,7 +1058,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
             if (oldVideoTrack) {
               localStream.removeTrack(oldVideoTrack);
               oldVideoTrack.stop(); // Release old camera
-              console.log('🗑️ Removed and stopped old video track');
             }
             
             // Add new video track
@@ -1112,7 +1072,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
             selectedDevices: { ...state.selectedDevices, camera: deviceId }
           }));
           
-          console.log('✅ Camera switched successfully');
           
         } catch (error) {
           console.error('💥 Failed to switch camera:', error);
@@ -1128,7 +1087,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        */
       switchMicrophone: async (deviceId: string) => {
         try {
-          console.log('🎤 Switching to microphone device:', deviceId);
           
           // Get new audio stream from selected microphone
           const newStream = await navigator.mediaDevices.getUserMedia({
@@ -1147,7 +1105,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
             if (oldAudioTrack) {
               localStream.removeTrack(oldAudioTrack);
               oldAudioTrack.stop(); // Release old microphone
-              console.log('🗑️ Removed and stopped old audio track');
             }
             
             // Add new audio track
@@ -1162,7 +1119,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
             selectedDevices: { ...state.selectedDevices, microphone: deviceId }
           }));
           
-          console.log('✅ Microphone switched successfully');
           
         } catch (error) {
           console.error('💥 Failed to switch microphone:', error);
@@ -1178,7 +1134,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        */
       refreshDevices: async () => {
         try {
-          console.log('🔄 Refreshing available media devices...');
           
           // Get all available media devices from browser
           const devices = await navigator.mediaDevices.enumerateDevices();
@@ -1188,7 +1143,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
           const microphones = devices.filter(device => device.kind === 'audioinput');
           const speakers = devices.filter(device => device.kind === 'audiooutput');
 
-          console.log('📱 Found devices:', {
             cameras: cameras.length,
             microphones: microphones.length,
             speakers: speakers.length
@@ -1240,7 +1194,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        * opens the chat panel or when messages are visible.
        */
       markMessagesRead: () => {
-        console.log('✅ Marking all messages as read');
         set({ unreadCount: 0 });
       },
 
@@ -1326,7 +1279,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        * feedback about WebSocket and WebRTC connection health.
        */
       updateConnectionState: (updates: Partial<ConnectionState>) => {
-        console.log('🔗 Updating connection state:', updates);
         set((state) => ({
           connectionState: { ...state.connectionState, ...updates }
         }));
@@ -1352,7 +1304,6 @@ export const useRoomStore = create<RoomState & RoomActions>()(
        * dismisses error notifications or when error condition resolves.
        */
       clearError: () => {
-        console.log('🧹 Clearing error message');
         set((state) => ({
           connectionState: { ...state.connectionState, lastError: undefined }
         }));
