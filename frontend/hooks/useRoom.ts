@@ -72,24 +72,17 @@ export const useRoom = () => {
     username: string,
     token: string,
     approvalToken?: string
-  ) => {
-    console.log('🚪 Starting room join process...', { roomId, username });
-    
+  ) => {    
     try {
       // =================== ROOM INITIALIZATION ===================
       // Set up all necessary connections and event handlers
-      console.log('🔧 Initializing room connection...');
       await initializeRoom(roomId, username, token);
       
       // =================== ROOM JOINING ===================
       // Request to join the room (may require host approval)
-      console.log('🚶 Requesting to join room...');
-      await joinRoom(approvalToken);
-      
-      console.log('✅ Successfully joined room:', roomId);
-      
+      await joinRoom(approvalToken);      
     } catch (error) {
-      console.error('💥 Failed to join room:', error);
+      console.error('Failed to join room:', error);
       handleError(`Failed to join room: ${error}`);
       
       // Re-throw error so caller can handle it if needed
@@ -104,14 +97,10 @@ export const useRoom = () => {
    * This wrapper ensures consistent behavior and can be extended
    * with additional cleanup logic if needed.
    */
-  const exitRoom = useCallback(() => {
-    console.log('👋 Exiting room...');
-    
+  const exitRoom = useCallback(() => {    
     // Perform complete room cleanup
     leaveRoom();
-    
-    console.log('✅ Successfully exited room');
-  }, [leaveRoom]);
+    }, [leaveRoom]);
 
   // =================== ROOM STATUS HELPERS ===================
   
@@ -329,7 +318,6 @@ export const useMediaControls = () => {
    * This ensures we have up-to-date device information for the UI.
    */
   useEffect(() => {
-    console.log('🎬 Initializing media controls, refreshing devices...');
     refreshDevices();
   }, [refreshDevices]);
 
@@ -341,9 +329,7 @@ export const useMediaControls = () => {
    * Provides a single function to start or stop screen sharing based
    * on current state. Simplifies UI logic for screen share buttons.
    */
-  const toggleScreenShare = useCallback(async () => {
-    console.log(`🖥️ ${isScreenSharing ? 'Stopping' : 'Starting'} screen share...`);
-    
+  const toggleScreenShare = useCallback(async () => {    
     if (isScreenSharing) {
       await stopScreenShare();
     } else {
