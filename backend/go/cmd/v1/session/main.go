@@ -19,8 +19,9 @@ import (
 
 func main() {
 	// Load .env file for local development.
-	if err := godotenv.Load(); err != nil {
-		slog.Warn(".env file not found, relying on environment variables.")
+	// The .env file is in the project root (backend/go/.env)
+	if err := godotenv.Load("../../../.env"); err != nil {
+		slog.Warn(".env file not found, relying on environment variables.", "error", err)
 	}
 
 	// Get Auth0 configuration from environment variables.
