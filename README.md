@@ -19,7 +19,7 @@ Full design system available on [Figma](https://www.figma.com/design/7uD81ikYXdk
 ## Key Highlights
 
 - Scale: Auto-scaling Kubernetes deployment (2-15 replicas)
-- Reliability: 450+ tests with 100% coverage on critical paths
+- Reliability: 500+ tests with 100% coverage on critical paths
 - Security: JWT auth, RBAC, network policies, pod security
 - Observability: Prometheus metrics, distributed tracing
 - DevOps: One-command deployment, GitOps-ready
@@ -55,7 +55,7 @@ Core Components:
 - Backend: Go, WebSocket, JWT
 - Frontend: Next.js 15, React 19, TypeScript
 - Infrastructure: Kubernetes, Envoy Gateway
-- Testing: 450+ tests, 100% coverage
+- Testing: 500+ tests
 
 ## Backend
 
