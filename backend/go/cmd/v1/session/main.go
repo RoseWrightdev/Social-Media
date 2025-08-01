@@ -17,33 +17,77 @@ import (
 	"Social-Media/backend/go/internal/v1/session"
 )
 
+// MockValidator is a development-only token validator that accepts any token
+type MockValidator struct{}
+
+func (m *MockValidator) ValidateToken(tokenString string) (*auth.CustomClaims, error) {
+	// For development, return a mock user
+	return &auth.CustomClaims{
+		Name:  "Dev User",
+		Email: "dev@example.com",
+	}, nil
+}
+
 func main() {
 	// Load .env file for local development.
-	// The .env file is in the project root (backend/go/.env)
-	if err := godotenv.Load("../../../.env"); err != nil {
-		slog.Warn(".env file not found, relying on environment variables.", "error", err)
+	// Try multiple paths to handle different ways of running the app
+	envPaths := []string{".env", "../../../.env", "../../.env"}
+	var envLoaded bool
+
+	for _, path := range envPaths {
+		if err := godotenv.Load(path); err == nil {
+			slog.Info("Loaded environment from", "path", path)
+			envLoaded = true
+			break
+		}
+	}
+
+	if !envLoaded {
+		slog.Warn("No .env file found in any expected location, relying on environment variables")
 	}
 
 	// Get Auth0 configuration from environment variables.
 	auth0Domain := os.Getenv("AUTH0_DOMAIN")
 	auth0Audience := os.Getenv("AUTH0_AUDIENCE")
-	if auth0Domain == "" || auth0Audience == "" {
-		slog.Error("AUTH0_DOMAIN and AUTH0_AUDIENCE must be set in environment")
-		return
+	skipAuth := os.Getenv("SKIP_AUTH") == "true"
+	developmentMode := os.Getenv("DEVELOPMENT_MODE") == "true"
+
+	if developmentMode {
+		slog.Info("🔧 Running in DEVELOPMENT MODE - Auth validation may be relaxed")
 	}
 
-	// Create the Auth0 token validator.
-	authValidator, err := auth.NewValidator(context.Background(), auth0Domain, auth0Audience)
-	if err != nil {
-		slog.Error("Failed to create auth validator", "error", err)
-		return
+	var authValidator *auth.Validator
+	if !skipAuth {
+		if auth0Domain == "" || auth0Audience == "" {
+			slog.Error("AUTH0_DOMAIN and AUTH0_AUDIENCE must be set in environment when SKIP_AUTH=false")
+			return
+		}
+
+		// Create the Auth0 token validator.
+		var err error
+		authValidator, err = auth.NewValidator(context.Background(), auth0Domain, auth0Audience)
+		if err != nil {
+			slog.Error("Failed to create auth validator", "error", err)
+			return
+		}
+		slog.Info("✅ Auth0 validator initialized", "domain", auth0Domain, "audience", auth0Audience)
+	} else {
+		slog.Warn("⚠️ Authentication DISABLED for development - DO NOT USE IN PRODUCTION")
+		authValidator = nil
 	}
 
 	// --- Create Hubs with Dependencies ---
 	// Each feature gets its own hub, configured with the same dependencies.
-	zoomCallHub := session.NewHub(authValidator)
-	screenShareHub := session.NewHub(authValidator)
-	chatHub := session.NewHub(authValidator)
+	var validator session.TokenValidator
+	if authValidator != nil {
+		validator = authValidator
+	} else {
+		validator = &MockValidator{}
+	}
+
+	zoomCallHub := session.NewHub(validator)
+	screenShareHub := session.NewHub(validator)
+	chatHub := session.NewHub(validator)
 
 	// --- Set up Server ---
 	router := gin.Default()
