@@ -41,63 +41,183 @@ npx shadcn@latest add alert skeleton progress toast
 
 ### 2. Project Structure
 
-Organize components following domain-driven design principles:
+Organize components following domain-driven design principles with nested components:
 
 ```text
 components/v1/
 ├── room/
-│   ├── RoomContainer.tsx       # Main orchestrator component
-│   ├── RoomHeader.tsx          # Room title, status, and controls
-│   └── RoomLayout.tsx          # Resizable layout manager
+│   └── components/
+│       ├── RoomContainer.tsx       # Main orchestrator component
+│       ├── RoomHeader.tsx          # Room title, status, and controls
+│       └── RoomLayout.tsx          # Resizable layout manager
 ├── media/
-│   ├── VideoGrid.tsx           # Participant video grid
-│   ├── VideoTile.tsx           # Individual video display
-│   ├── MediaControls.tsx       # Audio/video toggle controls
-│   └── DeviceSettings.tsx      # Camera/microphone selection
+│   └── components/
+│       ├── VideoGrid.tsx           # Participant video grid
+│       ├── VideoTile.tsx           # Individual video display
+│       ├── MediaControls.tsx       # Audio/video toggle controls
+│       ├── MediaPermissionPrompt.tsx # Permission request flow
+│       └── DeviceSettings.tsx      # Camera/microphone selection
+├── connection/
+│   └── components/
+│       ├── ConnectionStatusIndicator.tsx # Connection health display
+│       └── ConnectionProvider.tsx  # Connection context provider
 ├── chat/
-│   ├── ChatPanel.tsx           # Chat container and wrapper
-│   ├── MessageList.tsx         # Message history display
-│   └── MessageInput.tsx        # Message composition input
+│   └── components/
+│       ├── ChatPanel.tsx           # Chat container and wrapper
+│       ├── MessageList.tsx         # Message history display
+│       └── MessageInput.tsx        # Message composition input
 └── participants/
-    ├── ParticipantsList.tsx    # Participant roster
-    └── ParticipantCard.tsx     # Individual participant info
+    └── components/
+        ├── ParticipantsList.tsx    # Participant roster
+        └── ParticipantCard.tsx     # Individual participant info
 ```
 
 ## Core Components
 
 ### RoomContainer.tsx - Main Application Entry Point
 
-The primary orchestrator component that manages connection state and renders the appropriate UI.
+The primary orchestrator component using your sophisticated hooks architecture.
 
 ```typescript
+import React from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useConferenceRoom } from "@/hooks/useConferenceRoom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useRoomConnection } from "@/hooks/useRoomConnection";
+import { useMediaStream } from "@/hooks/useMediaStream";
+import { useRoomUI } from "@/hooks/useRoomConnection";
+import { useRoomStore } from "@/store/useRoomStore";
 import { RoomHeader } from "./RoomHeader";
 import { RoomLayout } from "./RoomLayout";
-import { MediaControls } from "../media/MediaControls";
+import { MediaControls } from "../media/components/MediaControls";
+import { ConnectionStatusIndicator } from "../connection/components/ConnectionStatusIndicator";
 
 interface RoomContainerProps {
   roomId: string;
+  username: string;
 }
 
-export function RoomContainer({ roomId }: RoomContainerProps) {
-  const conference = useConferenceRoom(roomId);
+export function RoomContainer({ roomId, username }: RoomContainerProps) {
+  // =================== HOOK INTEGRATION ===================
+  const connection = useRoomConnection({
+    maxRetries: 5,
+    retryDelay: 3000,
+    autoReconnect: true,
+    connectionTimeout: 15000
+  });
 
-  // Loading/connection state
-  if (!conference.state.isConnected) {
+  const media = useMediaStream({
+    autoStart: false,
+    
+  
+  // Connection loading state
+  if (!isConnected) {
     return (
-      <Card className="p-6 max-w-md mx-auto mt-8">
-        <div className="text-center space-y-4">
-          <h2 className="text-xl font-semibold">Join Conference</h2>
-          <Button 
-            onClick={conference.actions.joinConference}
-            className="w-full"
-            disabled={conference.status.loading}
-          >
-            {conference.status.loading ? 'Connecting...' : 'Join Room'}
-          </Button>
+      <div className="h-screen flex items-center justify-center bg-background">
+        <Card className="p-6 max-w-md mx-auto">
+          <div className="text-center space-y-4">
+            <div className="space-y-2">
+              {isReconnecting ? (
+                <Skeleton className="h-8 w-32 mx-auto" />
+              ) : (
+                <h2 className="text-xl font-semibold">
+                  {connectionState.status === 'connecting' ? 'Joining Room' : 'Connection Required'}
+                </h2>
+              )}
+              
+              <div className="flex items-center justify-center gap-2">
+                <Badge variant={connectionState.status === 'failed' ? 'destructive' : 'outline'}>
+                  {connectionState.status}
+                </Badge>
+                {connectionState.retryCount > 0 && (
+                  <Badge variant="secondary">
+                    Retry {connectionState.retryCount}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {connectionState.status === 'connecting' && (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-48 mx-auto" />
+                <p className="text-sm text-muted-foreground">
+                  Connecting to {roomId}...
+                </p>
+              </div>
+            )}
+
+            {connectionState.status === 'failed' && connectionState.lastError && (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {connectionState.lastError}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex gap-2">
+              {connectionState.status === 'failed' && (
+                <Button 
+                  onClick={retry}
+                  variant="outline"
+                  disabled={isReconnecting}
+                  className="flex-1"
+                >
+                  {isReconnecting ? 'Retrying...' : 'Retry Connection'}
+                </Button>
+              )}
+              
+              <Button 
+                onClick={connect}
+                disabled={connectionState.status === 'connecting'}
+                className="flex-1"
+              >
+                {connectionState.status === 'connecting' ? 'Connecting...' : 'Join Room'}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Connected state - main application layout
+  return (
+    <div className="h-screen flex flex-col bg-background">
+      {/* Header with connection status */}
+      <header className="border-b bg-card/50 p-4">
+        <div className="flex items-center justify-between">
+          <RoomHeader 
+            roomId={roomId}
+            participantCount={participants.size}
+            onLeave={disconnect}
+          />
+          <ConnectionStatusIndicator 
+            roomId={roomId}
+            username={username}
+          />
         </div>
+      </header>
+      
+      {/* Main content area */}
+      <main className="flex-1 overflow-hidden">
+        <RoomLayout 
+          participants={participants}
+          gridLayout={gridLayout}
+          isChatPanelOpen={isChatPanelOpen}
+          isParticipantsPanelOpen={isParticipantsPanelOpen}
+          roomId={roomId}
+        />
+      </main>
+      
+      {/* Media controls footer */}
+      <footer className="border-t bg-card/50 p-4">
+        <MediaControls />
+      </footer>
+    </div>
+  );
+}
       </Card>
     );
   }
@@ -198,92 +318,178 @@ export function RoomLayout({ participants, localStream, roomId }: RoomLayoutProp
 }
 ```
 
-### VideoGrid.tsx - Adaptive Video Display
+### VideoGrid.tsx - Participant Video Display
 
-Responsive grid layout that automatically adjusts based on participant count with proper loading states.
+Component for rendering video streams using your media hooks architecture.
 
 ```typescript
+import React from 'react';
 import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Mic, MicOff, Video, VideoOff, Users } from "lucide-react";
+import { useMediaStream } from "@/hooks/useMediaStream";
+import { useRoomStore } from "@/store/useRoomStore";
+import { cn } from "@/lib/utils";
 import { VideoTile } from "./VideoTile";
 
-interface Participant {
-  id: string;
-  name: string;
-  stream: MediaStream | null;
-  isAudioEnabled: boolean;
-  isVideoEnabled: boolean;
-  isSpeaking: boolean;
-}
-
 interface VideoGridProps {
-  participants: Map<string, Participant>;
-  localStream: MediaStream | null;
+  className?: string;
+  maxVisible?: number;
+  gridLayout?: 'auto' | 'speaker' | 'gallery';
 }
 
-export function VideoGrid({ participants, localStream }: VideoGridProps) {
-  const participantArray = Array.from(participants.values());
-  const totalParticipants = participantArray.length + (localStream ? 1 : 0);
-  
-  // Empty state
-  if (totalParticipants === 0) {
+export function VideoGrid({ 
+  className, 
+  maxVisible = 12,
+  gridLayout = 'auto'
+}: VideoGridProps) {
+  const { 
+    participants, 
+    localParticipant,
+    activeSpeaker,
+    roomState 
+  } = useRoomStore();
+
+  const media = useMediaStream({
+    autoStart: false,
+    video: { width: 1280, height: 720 },
+    audio: { echoCancellation: true, noiseSuppression: true }
+  });
+
+  const {
+    localStream,
+    remoteStreams,
+    isVideoEnabled,
+    isAudioEnabled,
+    deviceInfo
+  } = media;
+
+  // Convert participants Map to array for rendering
+  const participantList = React.useMemo(() => {
+    const list = Array.from(participants.values());
+    
+    // Always show local participant first
+    if (localParticipant) {
+      return [localParticipant, ...list.filter(p => p.id !== localParticipant.id)];
+    }
+    
+    return list;
+  }, [participants, localParticipant]);
+
+  // Determine grid layout classes based on participant count
+  const getGridClasses = React.useCallback((count: number) => {
+    if (gridLayout === 'speaker' && activeSpeaker) {
+      return "grid grid-cols-1 gap-2"; // Single speaker view
+    }
+    
+    if (count === 1) return "grid grid-cols-1";
+    if (count === 2) return "grid grid-cols-2 gap-2";
+    if (count <= 4) return "grid grid-cols-2 gap-2";
+    if (count <= 6) return "grid grid-cols-3 gap-2";
+    if (count <= 9) return "grid grid-cols-3 gap-2";
+    
+    return "grid grid-cols-4 gap-2"; // Max 4x3 grid
+  }, [gridLayout, activeSpeaker]);
+
+  // Handle empty state
+  if (participantList.length === 0) {
     return (
-      <Card className="h-full flex items-center justify-center m-4">
-        <div className="text-center space-y-4 p-8">
-          <Skeleton className="h-32 w-48 mx-auto rounded-lg" />
-          <Alert>
-            <AlertDescription>
-              Waiting for participants to join the conference...
-            </AlertDescription>
-          </Alert>
+      <Card className={cn("flex items-center justify-center p-8", className)}>
+        <div className="text-center space-y-4">
+          <Users className="h-12 w-12 mx-auto text-muted-foreground" />
+          <div>
+            <h3 className="text-lg font-medium">Waiting for participants</h3>
+            <p className="text-sm text-muted-foreground">
+              Share the room link to invite others
+            </p>
+          </div>
         </div>
       </Card>
     );
   }
 
+  const visibleParticipants = participantList.slice(0, maxVisible);
+  const overflowCount = Math.max(0, participantList.length - maxVisible);
+
   return (
-    <div className="h-full p-4">
-      <div className={`grid gap-4 h-full ${getGridClass(totalParticipants)}`}>
-        {/* Local video stream */}
-        {localStream && (
+    <div className={cn("relative", className)}>
+      {/* Speaker view for active speaker mode */}
+      {gridLayout === 'speaker' && activeSpeaker && (
+        <div className="mb-4">
           <VideoTile
-            key="local"
-            stream={localStream}
-            name="You"
-            isLocal={true}
-            isMuted={true}
-            isVideoEnabled={true}
-            isSpeaking={false}
+            participant={activeSpeaker}
+            stream={activeSpeaker.id === localParticipant?.id ? localStream : remoteStreams.get(activeSpeaker.id)}
+            isLocal={activeSpeaker.id === localParticipant?.id}
+            isActiveSpeaker={true}
+            className="aspect-video w-full max-h-[60vh]"
+            showControls={activeSpeaker.id === localParticipant?.id}
           />
-        )}
-        
-        {/* Remote participant streams */}
-        {participantArray.map(participant => (
-          <VideoTile
-            key={participant.id}
-            stream={participant.stream}
-            name={participant.name}
-            isLocal={false}
-            isMuted={!participant.isAudioEnabled}
-            isVideoEnabled={participant.isVideoEnabled}
-            isSpeaking={participant.isSpeaking}
-          />
-        ))}
+        </div>
+      )}
+
+      {/* Participant grid */}
+      <div className={getGridClasses(visibleParticipants.length)}>
+        {visibleParticipants.map((participant) => {
+          const isLocal = participant.id === localParticipant?.id;
+          const stream = isLocal ? localStream : remoteStreams.get(participant.id);
+          const isActiveSpeaking = activeSpeaker?.id === participant.id;
+          
+          return (
+            <VideoTile
+              key={participant.id}
+              participant={participant}
+              stream={stream}
+              isLocal={isLocal}
+              isActiveSpeaker={isActiveSpeaking}
+              showControls={isLocal}
+              className={cn(
+                "aspect-video",
+                gridLayout === 'speaker' && activeSpeaker && !isActiveSpeaking && "max-h-32"
+              )}
+            />
+          );
+        })}
       </div>
+
+      {/* Overflow indicator */}
+      {overflowCount > 0 && (
+        <Card className="absolute bottom-4 right-4 p-2">
+          <Badge variant="secondary" className="text-xs">
+            +{overflowCount} more
+          </Badge>
+        </Card>
+      )}
+
+      {/* Media status indicators */}
+      {localParticipant && (
+        <div className="absolute top-4 left-4 flex gap-2">
+          <Badge 
+            variant={isVideoEnabled ? "default" : "destructive"}
+            className="flex items-center gap-1"
+          >
+            {isVideoEnabled ? <Video className="h-3 w-3" /> : <VideoOff className="h-3 w-3" />}
+            Video
+          </Badge>
+          
+          <Badge 
+            variant={isAudioEnabled ? "default" : "destructive"}
+            className="flex items-center gap-1"
+          >
+            {isAudioEnabled ? <Mic className="h-3 w-3" /> : <MicOff className="h-3 w-3" />}
+            Audio
+          </Badge>
+          
+          {deviceInfo.hasCamera === false && (
+            <Badge variant="outline" className="text-xs">
+              No Camera
+            </Badge>
+          )}
+        </div>
+      )}
     </div>
   );
-}
-
-/**
- * Determines optimal grid layout based on participant count
- */
-function getGridClass(count: number): string {
-  if (count <= 1) return "grid-cols-1";
-  if (count <= 4) return "grid-cols-2 lg:grid-cols-2";
-  if (count <= 9) return "grid-cols-2 lg:grid-cols-3";
-  if (count <= 16) return "grid-cols-3 lg:grid-cols-4";
-  return "grid-cols-4 lg:grid-cols-5";
 }
 ```
 
@@ -411,13 +617,16 @@ export function VideoTile({
 
 ### MediaControls.tsx - Professional Control Bar
 
-Accessible media controls with tooltips and clear visual feedback for all user interactions.
+Accessible media controls integrated with your hooks architecture and tooltips for clear visual feedback.
 
 ```typescript
+import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { 
   MicIcon, 
@@ -426,158 +635,286 @@ import {
   VideoOffIcon, 
   PhoneIcon, 
   SettingsIcon,
-  ScreenShareIcon 
+  ScreenShareIcon,
+  WifiIcon,
+  WifiOffIcon
 } from "lucide-react";
+import { useMediaStream } from "@/hooks/useMediaStream";
+import { useRoomConnection } from "@/hooks/useRoomConnection";
+import { useDeviceCapabilities } from "@/hooks/useDeviceCapabilities";
 
 interface MediaControlsProps {
-  isAudioEnabled: boolean;
-  isVideoEnabled: boolean;
-  onToggleAudio: () => void;
-  onToggleVideo: () => void;
   onEndCall?: () => void;
   onOpenSettings?: () => void;
-  onToggleScreenShare?: () => void;
-  isScreenSharing?: boolean;
+  className?: string;
 }
 
 export function MediaControls({
-  isAudioEnabled,
-  isVideoEnabled,
-  onToggleAudio,
-  onToggleVideo,
   onEndCall,
   onOpenSettings,
-  onToggleScreenShare,
-  isScreenSharing = false
+  className
 }: MediaControlsProps) {
+  // =================== HOOK INTEGRATION ===================
+  const media = useMediaStream({
+    autoStart: false,
+    video: { width: 1280, height: 720 },
+    audio: { echoCancellation: true, noiseSuppression: true }
+  });
+
+  const connection = useRoomConnection({
+    maxRetries: 5,
+    retryDelay: 3000,
+    autoReconnect: true,
+    connectionTimeout: 15000
+  });
+
+  const devices = useDeviceCapabilities();
+
+  const {
+    isVideoEnabled,
+    isAudioEnabled,
+    isScreenSharing,
+    deviceInfo,
+    streamState,
+    toggleVideo,
+    toggleAudio,
+    startScreenShare,
+    stopScreenShare
+  } = media;
+
+  const { connectionState, isConnected } = connection;
+  const { hasCamera, hasMicrophone, hasScreenShare } = devices;
+
+  // =================== HANDLERS ===================
+  
+  const handleToggleVideo = React.useCallback(async () => {
+    if (!hasCamera) return;
+    await toggleVideo();
+  }, [hasCamera, toggleVideo]);
+
+  const handleToggleAudio = React.useCallback(async () => {
+    if (!hasMicrophone) return;
+    await toggleAudio();
+  }, [hasMicrophone, toggleAudio]);
+
+  const handleToggleScreenShare = React.useCallback(async () => {
+    if (!hasScreenShare) return;
+    
+    if (isScreenSharing) {
+      await stopScreenShare();
+    } else {
+      await startScreenShare();
+    }
+  }, [hasScreenShare, isScreenSharing, startScreenShare, stopScreenShare]);
+
+  // =================== PERMISSION ALERTS ===================
+  
+  // Show permission alerts for missing capabilities
+  const showPermissionAlert = !hasCamera || !hasMicrophone;
+
   return (
     <TooltipProvider>
-      <div className="flex items-center justify-center gap-3">
-        {/* Primary controls */}
-        <div className="flex items-center gap-2">
-          {/* Audio toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Toggle
-                pressed={isAudioEnabled}
-                onPressedChange={onToggleAudio}
-                variant="outline"
-                size="lg"
-                className={cn(
-                  "h-12 w-12 rounded-full transition-all",
-                  !isAudioEnabled && "bg-destructive text-destructive-foreground hover:bg-destructive/80"
-                )}
-                aria-label={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
-              >
-                {isAudioEnabled ? (
-                  <MicIcon className="h-5 w-5" />
-                ) : (
-                  <MicOffIcon className="h-5 w-5" />
-                )}
-              </Toggle>
-            </TooltipTrigger>
-            <TooltipContent>
-              {isAudioEnabled ? 'Mute microphone (M)' : 'Unmute microphone (M)'}
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Video toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Toggle
-                pressed={isVideoEnabled}
-                onPressedChange={onToggleVideo}
-                variant="outline"
-                size="lg"
-                className={cn(
-                  "h-12 w-12 rounded-full transition-all",
-                  !isVideoEnabled && "bg-destructive text-destructive-foreground hover:bg-destructive/80"
-                )}
-                aria-label={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
-              >
-                {isVideoEnabled ? (
-                  <VideoIcon className="h-5 w-5" />
-                ) : (
-                  <VideoOffIcon className="h-5 w-5" />
-                )}
-              </Toggle>
-            </TooltipTrigger>
-            <TooltipContent>
-              {isVideoEnabled ? 'Turn off camera (V)' : 'Turn on camera (V)'}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-
-        {/* Secondary controls */}
-        {(onToggleScreenShare || onOpenSettings) && (
-          <>
-            <Separator orientation="vertical" className="h-8" />
-            <div className="flex items-center gap-2">
-              {/* Screen share */}
-              {onToggleScreenShare && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Toggle
-                      pressed={isScreenSharing}
-                      onPressedChange={onToggleScreenShare}
-                      variant="outline"
-                      size="lg"
-                      className="h-12 w-12 rounded-full"
-                      aria-label={isScreenSharing ? 'Stop screen share' : 'Start screen share'}
-                    >
-                      <ScreenShareIcon className="h-5 w-5" />
-                    </Toggle>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {isScreenSharing ? 'Stop screen share' : 'Share screen'}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-
-              {/* Settings */}
-              {onOpenSettings && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      onClick={onOpenSettings}
-                      variant="outline"
-                      size="lg"
-                      className="h-12 w-12 rounded-full"
-                      aria-label="Open settings"
-                    >
-                      <SettingsIcon className="h-5 w-5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Settings
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          </>
+      <div className={cn("space-y-4", className)}>
+        {/* Permission alerts */}
+        {showPermissionAlert && (
+          <Alert>
+            <AlertDescription>
+              {!hasCamera && !hasMicrophone && "Camera and microphone access required for video calls."}
+              {!hasCamera && hasMicrophone && "Camera access required for video."}
+              {hasCamera && !hasMicrophone && "Microphone access required for audio."}
+            </AlertDescription>
+          </Alert>
         )}
 
-        {/* End call */}
-        {onEndCall && (
-          <>
-            <Separator orientation="vertical" className="h-8" />
+        {/* Main controls bar */}
+        <div className="flex items-center justify-center gap-3">
+          {/* Primary controls */}
+          <div className="flex items-center gap-2">
+            {/* Audio toggle */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  onClick={onEndCall}
-                  variant="destructive"
+                <Toggle
+                  pressed={isAudioEnabled}
+                  onPressedChange={handleToggleAudio}
+                  variant="outline"
                   size="lg"
-                  className="h-12 w-12 rounded-full bg-red-600 hover:bg-red-700"
-                  aria-label="End call"
+                  disabled={!hasMicrophone || streamState.audio === 'requesting'}
+                  className={cn(
+                    "h-12 w-12 rounded-full transition-all",
+                    !isAudioEnabled && "bg-destructive text-destructive-foreground hover:bg-destructive/80",
+                    !hasMicrophone && "opacity-50 cursor-not-allowed"
+                  )}
+                  aria-label={isAudioEnabled ? 'Mute microphone' : 'Unmute microphone'}
                 >
-                  <PhoneIcon className="h-5 w-5 rotate-[135deg]" />
-                </Button>
+                  {streamState.audio === 'requesting' ? (
+                    <div className="h-5 w-5 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                  ) : isAudioEnabled ? (
+                    <MicIcon className="h-5 w-5" />
+                  ) : (
+                    <MicOffIcon className="h-5 w-5" />
+                  )}
+                </Toggle>
               </TooltipTrigger>
               <TooltipContent>
-                End call (Ctrl+D)
+                {!hasMicrophone 
+                  ? "Microphone not available" 
+                  : streamState.audio === 'requesting' 
+                    ? "Requesting microphone access..."
+                    : isAudioEnabled 
+                      ? 'Mute microphone (M)' 
+                      : 'Unmute microphone (M)'
+                }
               </TooltipContent>
             </Tooltip>
-          </>
+
+            {/* Video toggle */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Toggle
+                  pressed={isVideoEnabled}
+                  onPressedChange={handleToggleVideo}
+                  variant="outline"
+                  size="lg"
+                  disabled={!hasCamera || streamState.video === 'requesting'}
+                  className={cn(
+                    "h-12 w-12 rounded-full transition-all",
+                    !isVideoEnabled && "bg-destructive text-destructive-foreground hover:bg-destructive/80",
+                    !hasCamera && "opacity-50 cursor-not-allowed"
+                  )}
+                  aria-label={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+                >
+                  {streamState.video === 'requesting' ? (
+                    <div className="h-5 w-5 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                  ) : isVideoEnabled ? (
+                    <VideoIcon className="h-5 w-5" />
+                  ) : (
+                    <VideoOffIcon className="h-5 w-5" />
+                  )}
+                </Toggle>
+              </TooltipTrigger>
+              <TooltipContent>
+                {!hasCamera 
+                  ? "Camera not available" 
+                  : streamState.video === 'requesting' 
+                    ? "Requesting camera access..."
+                    : isVideoEnabled 
+                      ? 'Turn off camera (V)' 
+                      : 'Turn on camera (V)'
+                }
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          {/* Secondary controls */}
+          <Separator orientation="vertical" className="h-8" />
+          <div className="flex items-center gap-2">
+            {/* Screen share */}
+            {hasScreenShare && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    pressed={isScreenSharing}
+                    onPressedChange={handleToggleScreenShare}
+                    variant="outline"
+                    size="lg"
+                    disabled={streamState.screen === 'requesting'}
+                    className="h-12 w-12 rounded-full"
+                    aria-label={isScreenSharing ? 'Stop screen share' : 'Start screen share'}
+                  >
+                    {streamState.screen === 'requesting' ? (
+                      <div className="h-5 w-5 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                    ) : (
+                      <ScreenShareIcon className="h-5 w-5" />
+                    )}
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {streamState.screen === 'requesting' 
+                    ? "Requesting screen share access..."
+                    : isScreenSharing 
+                      ? 'Stop screen share' 
+                      : 'Share screen'
+                  }
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Settings */}
+            {onOpenSettings && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={onOpenSettings}
+                    variant="outline"
+                    size="lg"
+                    className="h-12 w-12 rounded-full"
+                    aria-label="Open settings"
+                  >
+                    <SettingsIcon className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Settings
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Connection status indicator */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge 
+                  variant={isConnected ? "default" : "destructive"}
+                  className="flex items-center gap-1 px-2 py-1"
+                >
+                  {isConnected ? (
+                    <WifiIcon className="h-3 w-3" />
+                  ) : (
+                    <WifiOffIcon className="h-3 w-3" />
+                  )}
+                  {connectionState.status}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                Connection: {connectionState.status}
+                {connectionState.retryCount > 0 && ` (Retry ${connectionState.retryCount})`}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          {/* End call */}
+          {onEndCall && (
+            <>
+              <Separator orientation="vertical" className="h-8" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={onEndCall}
+                    variant="destructive"
+                    size="lg"
+                    className="h-12 w-12 rounded-full bg-red-600 hover:bg-red-700"
+                    aria-label="End call"
+                  >
+                    <PhoneIcon className="h-5 w-5 rotate-[135deg]" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  End call
+                </TooltipContent>
+              </Tooltip>
+            </>
+          )}
+        </div>
+
+        {/* Device info display */}
+        {deviceInfo && (
+          <div className="flex justify-center gap-4 text-xs text-muted-foreground">
+            {deviceInfo.selectedCamera && (
+              <span>📹 {deviceInfo.selectedCamera.label || 'Camera'}</span>
+            )}
+            {deviceInfo.selectedMicrophone && (
+              <span>🎤 {deviceInfo.selectedMicrophone.label || 'Microphone'}</span>
+            )}
+          </div>
         )}
       </div>
     </TooltipProvider>
@@ -825,42 +1162,89 @@ Components are designed to be composed together rather than extended:
 
 #### Hook Integration Pattern
 
-Business logic stays in custom hooks, UI components remain pure:
+Your sophisticated hooks architecture provides clean separation between business logic and UI components:
 
 ```typescript
-// Hook handles business logic
-const conference = useConferenceRoom(roomId);
+// Component uses multiple specialized hooks
+function RoomContainer({ roomId, username }: RoomContainerProps) {
+  // Connection management
+  const connection = useRoomConnection({
+    maxRetries: 5,
+    retryDelay: 3000,
+    autoReconnect: true,
+    connectionTimeout: 15000
+  });
 
-// Component handles presentation
-return (
-  <MediaControls
-    isAudioEnabled={conference.state.isAudioEnabled}
-    onToggleAudio={conference.actions.toggleAudio}
-  />
-);
+  // Media stream handling
+  const media = useMediaStream({
+    autoStart: false,
+    video: { width: 1280, height: 720 },
+    audio: { echoCancellation: true, noiseSuppression: true }
+  });
+
+  // Room state management
+  const { participants, localParticipant } = useRoomStore();
+
+  // UI state management
+  const ui = useRoomUI();
+
+  // Component handles presentation only
+  return (
+    <div className="h-screen flex flex-col">
+      <RoomHeader 
+        roomId={roomId}
+        participantCount={participants.size}
+        onLeave={connection.disconnect}
+      />
+      <VideoGrid 
+        participants={participants}
+        localStream={media.localStream}
+        gridLayout={ui.gridLayout}
+      />
+      <MediaControls 
+        onEndCall={connection.disconnect}
+      />
+    </div>
+  );
+}
 ```
 
 ### Type Safety & Interfaces
 
-Define clear TypeScript interfaces for all component props:
+Your TypeScript interfaces provide complete type safety across the component hierarchy:
 
 ```typescript
-// Define shared types
-interface Participant {
-  id: string;
-  name: string;
-  stream: MediaStream | null;
-  isAudioEnabled: boolean;
-  isVideoEnabled: boolean;
-  isSpeaking: boolean;
-  joinedAt: Date;
+// From your TYPESCRIPT_INTERFACES.md documentation
+interface RoomConnectionState {
+  status: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed';
+  lastError: string | null;
+  retryCount: number;
+  connectionQuality: 'excellent' | 'good' | 'poor' | 'disconnected';
 }
 
-interface ConferenceState {
+interface MediaStreamState {
+  video: 'idle' | 'requesting' | 'active' | 'failed';
+  audio: 'idle' | 'requesting' | 'active' | 'failed';
+  screen: 'idle' | 'requesting' | 'active' | 'failed';
+}
+
+interface DeviceInfo {
+  hasCamera: boolean;
+  hasMicrophone: boolean;
+  hasScreenShare: boolean;
+  selectedCamera: MediaDeviceInfo | null;
+  selectedMicrophone: MediaDeviceInfo | null;
+  availableCameras: MediaDeviceInfo[];
+  availableMicrophones: MediaDeviceInfo[];
+}
+
+// Component props inherit from hook return types
+interface VideoGridProps {
   participants: Map<string, Participant>;
   localStream: MediaStream | null;
-  isConnected: boolean;
-  roomId: string;
+  gridLayout?: 'auto' | 'speaker' | 'gallery';
+  maxVisible?: number;
+}
 }
 
 interface ConferenceActions {
@@ -947,23 +1331,106 @@ const handleToggleAudio = useCallback(() => {
 - [ ] Breakout rooms
 - [ ] Meeting analytics and insights
 
+## Context Providers & Domain Separation
+
+Your implementation uses individual context providers for clean domain separation:
+
+```typescript
+// providers/session-provider.tsx
+export function SessionProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <RoomConnectionProvider>
+      <MediaStreamProvider>
+        <DeviceCapabilitiesProvider>
+          {children}
+        </DeviceCapabilitiesProvider>
+      </MediaStreamProvider>
+    </RoomConnectionProvider>
+  );
+}
+
+// Individual domain contexts
+export function RoomConnectionProvider({ children }: { children: React.ReactNode }) {
+  // Room connection logic
+}
+
+export function MediaStreamProvider({ children }: { children: React.ReactNode }) {
+  // Media stream management
+}
+
+export function DeviceCapabilitiesProvider({ children }: { children: React.ReactNode }) {
+  // Device detection and management
+}
+```
+
+## Testing Integration
+
+Your Vitest setup provides comprehensive testing for components and hooks:
+
+```typescript
+// Component testing with hooks
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { MediaControls } from '@/components/v1/media/components/MediaControls';
+
+// Mock your hooks
+vi.mock('@/hooks/useMediaStream', () => ({
+  useMediaStream: () => ({
+    isVideoEnabled: true,
+    isAudioEnabled: true,
+    toggleVideo: vi.fn(),
+    toggleAudio: vi.fn(),
+    streamState: { video: 'active', audio: 'active', screen: 'idle' }
+  })
+}));
+
+describe('MediaControls', () => {
+  it('renders with proper accessibility attributes', () => {
+    render(<MediaControls />);
+    
+    expect(screen.getByLabelText(/mute microphone/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/turn off camera/i)).toBeInTheDocument();
+  });
+});
+```
+
 ## Best Practices Summary
 
 **Component Organization:**
 
-- Group by domain (room, media, chat, participants)
-- Use consistent naming conventions
-- Keep components focused and reusable
+- Nested components folder structure (`components/v1/domain/components/`)
+- Domain-driven design with clear boundaries
+- Component-level error boundaries for resilience
+
+**Hook Architecture:**
+
+- Specialized hooks for specific concerns (connection, media, UI)
+- Clear return type interfaces for all hooks
+- Sophisticated state management with retry logic and error handling
 
 **State Management:**
 
-- Business logic in custom hooks
-- UI state in component local state
-- Global state for cross-cutting concerns
+- Individual context providers for domain separation
+- Zustand store for global room state
+- Local component state for UI-specific concerns
 
-**Styling:**
+**Styling & UI:**
 
-- Use Tailwind utility classes consistently
+- Tailwind CSS for utility-first styling
+- Shadcn UI components for consistent design system
+- Hooks-only UI pattern (no class components)
+
+**Testing:**
+
+- Vitest for fast unit and integration testing
+- Component testing with proper hook mocking
+- Accessibility testing for inclusive design
+
+**Development Experience:**
+
+- TypeScript interfaces for complete type safety
+- Comprehensive documentation with examples
+- Linting and formatting for code quality
 - Leverage Shadcn's design system
 - Maintain consistent spacing and typography
 
