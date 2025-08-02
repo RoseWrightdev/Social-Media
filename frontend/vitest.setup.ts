@@ -38,7 +38,7 @@ Object.defineProperty(navigator, 'mediaDevices', {
 })
 
 // Mock WebSocket
-global.WebSocket = vi.fn(() => ({
+globalThis.WebSocket = vi.fn(() => ({
   send: vi.fn(),
   close: vi.fn(),
   addEventListener: vi.fn(),
