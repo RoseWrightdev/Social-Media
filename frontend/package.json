@@ -9,6 +9,8 @@
     "lint": "next lint",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:unit": "vitest --config vitest.unit.config.mts",
+    "test:unit:run": "vitest run --config vitest.unit.config.mts",
     "cypress:open": "cypress open",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
