@@ -1,156 +1,55 @@
 /**
- * WebSocket Client Library for Real-time Video Conferencing Platform
+ * WebSocket client for real-time video conferencing platform
  * 
- * This module provides a comprehensive WebSocket client implementation for connecting
- * to the Go backend video conferencing server. It supports real-time communication
- * for video calls, chat, screen sharing, and room management.
- * 
- * Key Features:
- * - Automatic reconnection with exponential backoff
- * - Heartbeat monitoring for connection health
- * - Type-safe message handling with TypeScript
- * - WebRTC signaling support (SDP offers/answers, ICE candidates)
- * - Room management (waiting room, host controls, participant management)
- * - Real-time chat with message history
- * - Screen sharing coordination
- * - Comprehensive error handling and recovery
- * 
- * Architecture:
- * - Event-driven design with message type handlers
- * - Promise-based connection management
- * - Configurable retry logic and timeouts
- * - Separation of concerns between transport and application logic
- * 
- * Usage Example:
+ * @example
  * ```typescript
  * const client = createWebSocketClient('zoom', 'room123', 'jwt-token');
- * 
- * // Subscribe to events
- * client.on('add_chat', (message) => {
- *   console.log('New chat:', message.payload.chatContent);
- * });
- * 
- * // Connect and handle errors
- * try {
- *   await client.connect();
- *   client.sendChat('Hello everyone!', { clientId: 'user1', displayName: 'John' });
- * } catch (error) {
- *   console.error('Connection failed:', error);
- * }
+ * await client.connect();
+ * client.sendChat('Hello!', { clientId: 'user1', displayName: 'John' });
  * ```
- * 
- * @fileoverview WebSocket client for real-time video conferencing platform
- * @author Video Conferencing Platform Team
- * @version 1.0.0
  */
 
-/**
- * Event types supported by the WebSocket API
- * 
- * These events correspond to the Go backend WebSocket handlers and provide
- * type-safe message routing for different platform features.
- * 
- * @enum {string}
- */
+/** Event types for WebSocket communication */
 export type EventType = 
-  // Chat Events - Real-time messaging functionality
-  | 'add_chat'          // Send a new chat message to the room
-  | 'delete_chat'       // Delete an existing chat message (author/host only)
-  | 'get_recent_chats'  // Request recent chat history
-  // Hand Raising Events - Speaking queue management
-  | 'raise_hand'        // Participant requests to speak
-  | 'lower_hand'        // Participant cancels speak request
-  // Waiting Room Events - Host-controlled room admission
-  | 'request_waiting'   // User requests to join from waiting room
-  | 'accept_waiting'    // Host approves waiting room user
-  | 'deny_waiting'      // Host denies waiting room user
-  // Connection Events - Basic connection lifecycle
-  | 'connect'           // Initial connection establishment
-  | 'disconnect'        // Clean disconnection
-  // Screen Sharing Events - Collaborative screen sharing
-  | 'request_screenshare' // Request permission to share screen
-  | 'accept_screenshare'  // Host approves screen sharing
-  | 'deny_screenshare'    // Host denies screen sharing
-  // WebRTC Signaling Events - Peer-to-peer connection setup
-  | 'offer'             // WebRTC SDP offer for connection establishment
-  | 'answer'            // WebRTC SDP answer responding to offer
-  | 'candidate'         // ICE candidate for NAT traversal
-  | 'renegotiate'       // Request connection renegotiation
-  // Room State Events - Real-time room status updates
-  | 'room_state';       // Complete room state synchronization
+  | 'add_chat'
+  | 'delete_chat' 
+  | 'get_recent_chats'
+  | 'raise_hand'
+  | 'lower_hand'
+  | 'request_waiting'
+  | 'accept_waiting'
+  | 'deny_waiting'
+  | 'connect'
+  | 'disconnect'
+  | 'request_screenshare'
+  | 'accept_screenshare'
+  | 'deny_screenshare'
+  | 'offer'
+  | 'answer'
+  | 'candidate'
+  | 'renegotiate'
+  | 'room_state';
 
-/**
- * User role types with hierarchical permissions
- * 
- * Roles determine what actions a user can perform in the room:
- * - waiting: Limited permissions, awaiting host approval
- * - participant: Standard meeting participant permissions
- * - screenshare: Enhanced permissions for screen sharing
- * - host: Full administrative control over the room
- * 
- * @enum {string}
- */
+/** User role types */
 export type RoleType = 'waiting' | 'participant' | 'screenshare' | 'host';
 
-/**
- * Base client information for identifying users across the platform
- * 
- * All WebSocket messages include client information to identify the sender
- * and provide context for message routing and permission checks.
- * 
- * @interface ClientInfo
- * @property {string} clientId - Unique identifier for the client session
- * @property {string} displayName - Human-readable name shown in the UI
- */
+/** Client information for user identification */
 export interface ClientInfo {
   clientId: string;
   displayName: string;
 }
 
-/**
- * Chat message payload structure
- * 
- * Represents a chat message with metadata for persistence, ordering,
- * and moderation capabilities.
- * 
- * @interface ChatPayload
- * @extends ClientInfo
- * @property {string} chatId - Unique identifier for the message
- * @property {number} timestamp - Unix timestamp when message was created
- * @property {string} chatContent - The actual message content (max 1000 chars)
- */
+/** Chat message payload */
 export interface ChatPayload extends ClientInfo {
   chatId: string;
   timestamp: number;
   chatContent: string;
 }
 
-/**
- * Participant information payload
- * 
- * Basic participant data used for room management and user lists.
- * Extended by other interfaces for specific use cases.
- * 
- * @interface ParticipantPayload
- * @extends ClientInfo
- */
+/** Participant information */
 export interface ParticipantPayload extends ClientInfo {}
 
-/**
- * Complete room state synchronization payload
- * 
- * Provides a comprehensive snapshot of the room's current state,
- * including all participants, their roles, and current activities.
- * 
- * @interface RoomStatePayload
- * @extends ClientInfo
- * @property {string} roomId - Unique identifier for the room
- * @property {ClientInfo[]} hosts - List of users with host privileges
- * @property {ClientInfo[]} participants - List of regular participants
- * @property {ClientInfo[]} handsRaised - List of participants requesting to speak
- * @property {ClientInfo[]} waitingUsers - List of users awaiting approval
- * @property {ClientInfo[]} sharingScreen - List of users currently screen sharing
- */
+/** Room state synchronization payload */
 export interface RoomStatePayload extends ClientInfo {
   roomId: string;
   hosts: ClientInfo[];
@@ -160,62 +59,24 @@ export interface RoomStatePayload extends ClientInfo {
   sharingScreen: ClientInfo[];
 }
 
-/**
- * Screen sharing coordination payload
- * 
- * Used for requesting, approving, and managing screen sharing sessions.
- * 
- * @interface ScreenSharePayload
- * @extends ClientInfo
- */
+/** Screen sharing coordination payload */
 export interface ScreenSharePayload extends ClientInfo {}
 
-/**
- * WebRTC SDP offer payload for peer connection establishment
- * 
- * Contains session description protocol data for initiating a WebRTC connection.
- * 
- * @interface WebRTCOfferPayload
- * @extends ClientInfo
- * @property {string} targetClientId - ID of the client to establish connection with
- * @property {string} sdp - Session Description Protocol data
- * @property {'offer'} type - Message type identifier
- */
+/** WebRTC offer payload */
 export interface WebRTCOfferPayload extends ClientInfo {
   targetClientId: string;
   sdp: string;
   type: 'offer';
 }
 
-/**
- * WebRTC SDP answer payload for peer connection response
- * 
- * Contains session description protocol data responding to a connection offer.
- * 
- * @interface WebRTCAnswerPayload
- * @extends ClientInfo
- * @property {string} targetClientId - ID of the client that sent the offer
- * @property {string} sdp - Session Description Protocol data
- * @property {'answer'} type - Message type identifier
- */
+/** WebRTC answer payload */
 export interface WebRTCAnswerPayload extends ClientInfo {
   targetClientId: string;
   sdp: string;
   type: 'answer';
 }
 
-/**
- * WebRTC ICE candidate payload for NAT traversal
- * 
- * Contains Interactive Connectivity Establishment data for network traversal.
- * 
- * @interface WebRTCCandidatePayload
- * @extends ClientInfo
- * @property {string} targetClientId - ID of the peer connection target
- * @property {string} candidate - ICE candidate string
- * @property {string} [sdpMid] - Media stream identification tag
- * @property {number} [sdpMLineIndex] - Media line index in SDP
- */
+/** WebRTC ICE candidate payload */
 export interface WebRTCCandidatePayload extends ClientInfo {
   targetClientId: string;
   candidate: string;
@@ -223,16 +84,7 @@ export interface WebRTCCandidatePayload extends ClientInfo {
   sdpMLineIndex?: number;
 }
 
-/**
- * WebRTC renegotiation request payload
- * 
- * Used to request connection renegotiation for codec changes or error recovery.
- * 
- * @interface WebRTCRenegotiatePayload
- * @extends ClientInfo
- * @property {string} targetClientId - ID of the peer to renegotiate with
- * @property {string} [reason] - Optional reason for renegotiation
- */
+/** WebRTC renegotiation request */
 export interface WebRTCRenegotiatePayload extends ClientInfo {
   targetClientId: string;
   reason?: string;
@@ -248,54 +100,23 @@ export type MessagePayload =
   | WebRTCCandidatePayload
   | WebRTCRenegotiatePayload;
 
-/**
- * WebSocket message structure for client-server communication
- * 
- * All messages follow this standardized format for type-safe routing.
- * 
- * @interface WebSocketMessage
- * @property {EventType} event - The event type identifier
- * @property {MessagePayload} payload - Event-specific data payload
- */
+/** WebSocket message structure */
 export interface WebSocketMessage {
   event: EventType;
   payload: MessagePayload;
 }
 
-/**
- * Chat history response structure
- * 
- * Used for paginated chat message retrieval.
- * 
- * @interface ChatHistoryResponse
- * @property {ChatPayload[]} messages - Array of chat messages
- * @property {number} total - Total number of messages available
- * @property {boolean} hasMore - Whether more messages are available
- */
+/** Chat history response */
 export interface ChatHistoryResponse {
   messages: ChatPayload[];
   total: number;
   hasMore: boolean;
 }
 
-/**
- * WebSocket connection states
- * 
- * @typedef {string} ConnectionState
- */
+/** WebSocket connection states */
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error' | 'reconnecting';
 
-/**
- * Configuration options for WebSocket client
- * 
- * @interface WebSocketConfig
- * @property {string} url - WebSocket server URL
- * @property {string} token - JWT authentication token
- * @property {boolean} [autoReconnect=true] - Enable automatic reconnection
- * @property {number} [reconnectInterval=3000] - Milliseconds between reconnect attempts
- * @property {number} [maxReconnectAttempts=5] - Maximum reconnection attempts
- * @property {number} [heartbeatInterval=30000] - Heartbeat ping interval in milliseconds
- */
+/** WebSocket client configuration */
 export interface WebSocketConfig {
   url: string;
   token: string;
@@ -305,55 +126,19 @@ export interface WebSocketConfig {
   heartbeatInterval?: number;
 }
 
-/**
- * Event handler function types
- */
+/** Event handler function types */
 export type MessageHandler = (message: WebSocketMessage) => void;
 export type ConnectionHandler = (state: ConnectionState) => void;
 export type ErrorHandler = (error: Error) => void;
 
 /**
- * Enterprise-grade WebSocket client for real-time video conferencing platform
- * 
- * Features:
- * - Automatic reconnection with exponential backoff
- * - JWT-based authentication
- * - Type-safe message handling
- * - Heartbeat monitoring
- * - Event-driven architecture
- * - Connection state management
- * - Error handling and recovery
- * 
- * The client manages all real-time communication with the Go backend,
- * including chat, participant management, screen sharing, and WebRTC signaling.
- * 
- * @class WebSocketClient
+ * WebSocket client for real-time video conferencing
  * 
  * @example
  * ```typescript
- * const client = new WebSocketClient({
- *   url: 'wss://api.example.com/ws',
- *   token: 'jwt-token-here',
- *   autoReconnect: true,
- *   maxReconnectAttempts: 10
- * });
- * 
- * // Handle chat messages
- * client.on('add_chat', (message) => {
- *   console.log('New chat:', message.payload.chatContent);
- * });
- * 
- * // Handle connection state changes
- * client.onConnectionChange((state) => {
- *   console.log('Connection state:', state);
- * });
- * 
- * // Connect and send message
+ * const client = new WebSocketClient({ url: 'wss://api.example.com/ws', token: 'jwt' });
  * await client.connect();
- * client.sendChat('Hello world!', {
- *   clientId: 'user123',
- *   displayName: 'John Doe'
- * });
+ * client.sendChat('Hello!', { clientId: 'user123', displayName: 'John' });
  * ```
  */
 export class WebSocketClient {
@@ -367,11 +152,7 @@ export class WebSocketClient {
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private reconnectTimer: NodeJS.Timeout | null = null;
 
-  /**
-   * Initialize WebSocket client with configuration
-   * 
-   * @param {WebSocketConfig} config - Client configuration options
-   */
+  /** Initialize WebSocket client */
   constructor(config: WebSocketConfig) {
     this.config = {
       autoReconnect: true,
@@ -382,25 +163,7 @@ export class WebSocketClient {
     };
   }
 
-  /**
-   * Establish WebSocket connection to the server
-   * 
-   * Initiates connection with JWT authentication and sets up event handlers.
-   * Automatically starts heartbeat monitoring on successful connection.
-   * 
-   * @returns {Promise<void>} Promise that resolves when connection is established
-   * @throws {Error} When connection fails or authentication is rejected
-   * 
-   * @example
-   * ```typescript
-   * try {
-   *   await client.connect();
-   *   console.log('Connected successfully');
-   * } catch (error) {
-   *   console.error('Connection failed:', error);
-   * }
-   * ```
-   */
+  /** Establish WebSocket connection */
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
@@ -429,7 +192,6 @@ export class WebSocketClient {
           this.cleanup();
           
           if (event.code === 1000) {
-            // Normal closure
             this.setConnectionState('disconnected');
           } else if (this.config.autoReconnect && this.reconnectAttempts < this.config.maxReconnectAttempts) {
             this.setConnectionState('reconnecting');
@@ -453,24 +215,7 @@ export class WebSocketClient {
     });
   }
 
-  /**
-   * Gracefully disconnect from the WebSocket server
-   * 
-   * Closes the WebSocket connection, stops automatic reconnection,
-   * clears all timers, and sets connection state to disconnected.
-   * 
-   * @example
-   * ```typescript
-   * // Graceful shutdown when user leaves the page
-   * window.addEventListener('beforeunload', () => {
-   *   client.disconnect();
-   * });
-   * 
-   * // Manual disconnect
-   * client.disconnect();
-   * console.log('Disconnected from server');
-   * ```
-   */
+  /** Gracefully disconnect from WebSocket server */
   disconnect(): void {
     this.config.autoReconnect = false;
     
@@ -482,28 +227,7 @@ export class WebSocketClient {
     this.setConnectionState('disconnected');
   }
 
-  /**
-   * Send a message to the WebSocket server
-   * 
-   * Low-level method for sending typed messages to the server.
-   * Automatically serializes the message and handles connection validation.
-   * 
-   * @param {EventType} event - The event type identifier
-   * @param {MessagePayload} payload - The message payload data
-   * @throws {Error} When WebSocket is not connected
-   * 
-   * @example
-   * ```typescript
-   * // Send custom message (prefer using specific methods like sendChat)
-   * client.send('add_chat', {
-   *   clientId: 'user123',
-   *   displayName: 'John Doe',
-   *   chatId: 'msg456',
-   *   timestamp: Date.now(),
-   *   chatContent: 'Hello world!'
-   * });
-   * ```
-   */
+  /** Send message to WebSocket server */
   send(event: EventType, payload: MessagePayload): void {
     if (!this.isConnected()) {
       throw new Error('WebSocket not connected');
@@ -519,23 +243,7 @@ export class WebSocketClient {
     }
   }
 
-  /**
-   * Send a chat message to the room
-   * 
-   * Broadcasts a chat message to all participants in the current room.
-   * Messages are automatically timestamped and assigned unique IDs.
-   * 
-   * @param {string} content - The message content (max 1000 characters)
-   * @param {ClientInfo} clientInfo - Sender's client information
-   * 
-   * @example
-   * ```typescript
-   * client.sendChat('Hello everyone!', {
-   *   clientId: 'user123',
-   *   displayName: 'John Doe'
-   * });
-   * ```
-   */
+  /** Send chat message to room */
   sendChat(content: string, clientInfo: ClientInfo): void {
     const payload: ChatPayload = {
       ...clientInfo,
@@ -547,23 +255,7 @@ export class WebSocketClient {
     this.send('add_chat', payload);
   }
 
-  /**
-   * Delete a chat message from the room
-   * 
-   * Removes a chat message from the room history. Only available to
-   * message authors and room hosts.
-   * 
-   * @param {string} chatId - Unique identifier of the message to delete
-   * @param {ClientInfo} clientInfo - Client information for authorization
-   * 
-   * @example
-   * ```typescript
-   * client.deleteChat('msg-123', {
-   *   clientId: 'user123',
-   *   displayName: 'John Doe'
-   * });
-   * ```
-   */
+  /** Delete chat message from room */
   deleteChat(chatId: string, clientInfo: ClientInfo): void {
     const payload: ChatPayload = {
       ...clientInfo,
@@ -575,224 +267,52 @@ export class WebSocketClient {
     this.send('delete_chat', payload);
   }
 
-  /**
-   * Request recent chat message history
-   * 
-   * Retrieves recent chat messages for the current room.
-   * Response is delivered via the message handler system.
-   * 
-   * @param {ClientInfo} clientInfo - Client information for the request
-   * 
-   * @example
-   * ```typescript
-   * // Set up handler for chat history response
-   * client.on('get_recent_chats', (message) => {
-   *   const history = message.payload as ChatHistoryResponse;
-   *   console.log(`Received ${history.messages.length} messages`);
-   * });
-   * 
-   * // Request history
-   * client.requestChatHistory({
-   *   clientId: 'user123',
-   *   displayName: 'John Doe'
-   * });
-   * ```
-   */
+  /** Request recent chat history */
   requestChatHistory(clientInfo: ClientInfo): void {
     this.send('get_recent_chats', clientInfo);
   }
 
-  /**
-   * Raise hand to request speaking permission
-   * 
-   * Signals to room hosts that the participant wants to speak.
-   * Adds the user to the speaking queue for host approval.
-   * 
-   * @param {ClientInfo} clientInfo - Client information for the request
-   * 
-   * @example
-   * ```typescript
-   * client.raiseHand({
-   *   clientId: 'user123',
-   *   displayName: 'John Doe'
-   * });
-   * ```
-   */
+  /** Raise hand to request speaking */
   raiseHand(clientInfo: ClientInfo): void {
     this.send('raise_hand', clientInfo);
   }
 
-  /**
-   * Lower raised hand
-   * 
-   * Cancels a previously raised hand request and removes
-   * the user from the speaking queue.
-   * 
-   * @param {ClientInfo} clientInfo - Client information for the request
-   * 
-   * @example
-   * ```typescript
-   * client.lowerHand({
-   *   clientId: 'user123',
-   *   displayName: 'John Doe'
-   * });
-   * ```
-   */
+  /** Lower raised hand */
   lowerHand(clientInfo: ClientInfo): void {
     this.send('lower_hand', clientInfo);
   }
 
-  /**
-   * Request to join room from waiting room
-   * 
-   * Sends a request to room hosts for permission to join the main room.
-   * Used when room has waiting room enabled for host-controlled admission.
-   * 
-   * @param {ClientInfo} clientInfo - Client information for the request
-   * 
-   * @example
-   * ```typescript
-   * client.requestWaiting({
-   *   clientId: 'user123',
-   *   displayName: 'John Doe'
-   * });
-   * ```
-   */
+  /** Request to join from waiting room */
   requestWaiting(clientInfo: ClientInfo): void {
     this.send('request_waiting', clientInfo);
   }
 
-  /**
-   * Accept waiting user into the main room (host only)
-   * 
-   * Approves a user's request to join from the waiting room.
-   * Only hosts can perform this action.
-   * 
-   * @param {ClientInfo} targetClient - Information of the user to accept
-   * @param {ClientInfo} hostInfo - Host's client information for authorization
-   * 
-   * @example
-   * ```typescript
-   * // Host accepts a waiting user
-   * client.acceptWaiting(
-   *   { clientId: 'waiting-user', displayName: 'Jane Smith' },
-   *   { clientId: 'host-123', displayName: 'Host Name' }
-   * );
-   * ```
-   */
+  /** Accept waiting user (host only) */
   acceptWaiting(targetClient: ClientInfo, hostInfo: ClientInfo): void {
     this.send('accept_waiting', targetClient);
   }
 
-  /**
-   * Deny waiting user's request to join (host only)
-   * 
-   * Rejects a user's request to join from the waiting room.
-   * Only hosts can perform this action.
-   * 
-   * @param {ClientInfo} targetClient - Information of the user to deny
-   * @param {ClientInfo} hostInfo - Host's client information for authorization
-   * 
-   * @example
-   * ```typescript
-   * // Host denies a waiting user
-   * client.denyWaiting(
-   *   { clientId: 'waiting-user', displayName: 'Spam User' },
-   *   { clientId: 'host-123', displayName: 'Host Name' }
-   * );
-   * ```
-   */
+  /** Deny waiting user (host only) */
   denyWaiting(targetClient: ClientInfo, hostInfo: ClientInfo): void {
     this.send('deny_waiting', targetClient);
   }
 
-  /**
-   * Request permission to share screen
-   * 
-   * Sends a request to room hosts for permission to share screen.
-   * Hosts will receive a notification and can approve or deny the request.
-   * 
-   * @param {ClientInfo} clientInfo - Client information for the request
-   * 
-   * @example
-   * ```typescript
-   * client.requestScreenShare({
-   *   clientId: 'user123',
-   *   displayName: 'John Doe'
-   * });
-   * ```
-   */
+  /** Request screen sharing permission */
   requestScreenShare(clientInfo: ClientInfo): void {
     this.send('request_screenshare', clientInfo);
   }
 
-  /**
-   * Accept screen sharing request (host only)
-   * 
-   * Approves a participant's request to share their screen.
-   * Only hosts can perform this action.
-   * 
-   * @param {ClientInfo} targetClient - Information of the user requesting to share
-   * @param {ClientInfo} hostInfo - Host's client information for authorization
-   * 
-   * @example
-   * ```typescript
-   * // Host approves screen sharing
-   * client.acceptScreenShare(
-   *   { clientId: 'presenter-user', displayName: 'Jane Presenter' },
-   *   { clientId: 'host-123', displayName: 'Host Name' }
-   * );
-   * ```
-   */
+  /** Accept screen sharing request (host only) */
   acceptScreenShare(targetClient: ClientInfo, hostInfo: ClientInfo): void {
     this.send('accept_screenshare', targetClient);
   }
 
-  /**
-   * Deny screen sharing request (host only)
-   * 
-   * Rejects a participant's request to share their screen.
-   * Only hosts can perform this action.
-   * 
-   * @param {ClientInfo} targetClient - Information of the user requesting to share
-   * @param {ClientInfo} hostInfo - Host's client information for authorization
-   * 
-   * @example
-   * ```typescript
-   * // Host denies screen sharing
-   * client.denyScreenShare(
-   *   { clientId: 'user-123', displayName: 'John Doe' },
-   *   { clientId: 'host-123', displayName: 'Host Name' }
-   * );
-   * ```
-   */
+  /** Deny screen sharing request (host only) */
   denyScreenShare(targetClient: ClientInfo, hostInfo: ClientInfo): void {
     this.send('deny_screenshare', targetClient);
   }
 
-  /**
-   * Send WebRTC offer for peer connection establishment
-   * 
-   * Initiates a WebRTC peer connection by sending an SDP offer to another client.
-   * Used to establish direct peer-to-peer communication for audio/video streams.
-   * 
-   * @param {RTCSessionDescriptionInit} offer - WebRTC session description offer
-   * @param {string} targetClientId - ID of the client to establish connection with
-   * @param {ClientInfo} clientInfo - Sender's client information
-   * 
-   * @example
-   * ```typescript
-   * // Create and send WebRTC offer
-   * const peerConnection = new RTCPeerConnection();
-   * const offer = await peerConnection.createOffer();
-   * await peerConnection.setLocalDescription(offer);
-   * 
-   * client.sendWebRTCOffer(offer, 'target-user-123', {
-   *   clientId: 'sender-456',
-   *   displayName: 'John Sender'
-   * });
-   * ```
-   */
+  /** Send WebRTC offer for peer connection */
   sendWebRTCOffer(offer: RTCSessionDescriptionInit, targetClientId: string, clientInfo: ClientInfo): void {
     const payload: WebRTCOfferPayload = {
       ...clientInfo,
@@ -804,34 +324,7 @@ export class WebSocketClient {
     this.send('offer', payload);
   }
 
-  /**
-   * Send WebRTC answer to respond to an offer
-   * 
-   * Responds to a WebRTC offer with an SDP answer to complete the connection handshake.
-   * Called after receiving and processing a WebRTC offer from another client.
-   * 
-   * @param {RTCSessionDescriptionInit} answer - WebRTC session description answer
-   * @param {string} targetClientId - ID of the client that sent the offer
-   * @param {ClientInfo} clientInfo - Responder's client information
-   * 
-   * @example
-   * ```typescript
-   * // Handle incoming offer and send answer
-   * client.on('offer', async (message) => {
-   *   const offerPayload = message.payload as WebRTCOfferPayload;
-   *   const peerConnection = new RTCPeerConnection();
-   *   
-   *   await peerConnection.setRemoteDescription(offerPayload);
-   *   const answer = await peerConnection.createAnswer();
-   *   await peerConnection.setLocalDescription(answer);
-   *   
-   *   client.sendWebRTCAnswer(answer, offerPayload.clientId, {
-   *     clientId: 'responder-789',
-   *     displayName: 'Jane Responder'
-   *   });
-   * });
-   * ```
-   */
+  /** Send WebRTC answer to respond to offer */
   sendWebRTCAnswer(answer: RTCSessionDescriptionInit, targetClientId: string, clientInfo: ClientInfo): void {
     const payload: WebRTCAnswerPayload = {
       ...clientInfo,
@@ -843,29 +336,7 @@ export class WebSocketClient {
     this.send('answer', payload);
   }
 
-  /**
-   * Send ICE candidate for NAT traversal
-   * 
-   * Exchanges ICE (Interactive Connectivity Establishment) candidates
-   * to establish the best network path between peers.
-   * 
-   * @param {RTCIceCandidate} candidate - ICE candidate containing connection information
-   * @param {string} targetClientId - ID of the peer connection target
-   * @param {ClientInfo} clientInfo - Sender's client information
-   * 
-   * @example
-   * ```typescript
-   * // Handle ICE candidate generation
-   * peerConnection.onicecandidate = (event) => {
-   *   if (event.candidate) {
-   *     client.sendICECandidate(event.candidate, 'target-user-123', {
-   *       clientId: 'sender-456',
-   *       displayName: 'John Sender'
-   *     });
-   *   }
-   * };
-   * ```
-   */
+  /** Send ICE candidate for NAT traversal */
   sendICECandidate(candidate: RTCIceCandidate, targetClientId: string, clientInfo: ClientInfo): void {
     const payload: WebRTCCandidatePayload = {
       ...clientInfo,
@@ -878,29 +349,7 @@ export class WebSocketClient {
     this.send('candidate', payload);
   }
 
-  /**
-   * Request WebRTC connection renegotiation
-   * 
-   * Initiates renegotiation of an existing peer connection.
-   * Used when connection parameters need to change (codec updates, network changes, etc.).
-   * 
-   * @param {string} targetClientId - ID of the peer to renegotiate with
-   * @param {string} reason - Reason for requesting renegotiation
-   * @param {ClientInfo} clientInfo - Requester's client information
-   * 
-   * @example
-   * ```typescript
-   * // Request renegotiation due to network change
-   * client.requestRenegotiation(
-   *   'peer-user-123',
-   *   'Network interface changed',
-   *   {
-   *     clientId: 'requester-456',
-   *     displayName: 'John Requester'
-   *   }
-   * );
-   * ```
-   */
+  /** Request WebRTC connection renegotiation */
   requestRenegotiation(targetClientId: string, reason: string, clientInfo: ClientInfo): void {
     const payload: WebRTCRenegotiatePayload = {
       ...clientInfo,
@@ -911,36 +360,7 @@ export class WebSocketClient {
     this.send('renegotiate', payload);
   }
 
-  /**
-   * Subscribe to specific WebSocket message types
-   * 
-   * Registers event handlers for incoming messages of specified types.
-   * Multiple handlers can be registered for the same event type.
-   * 
-   * @param {EventType} event - The event type to listen for
-   * @param {MessageHandler} handler - Function to handle incoming messages
-   * 
-   * @example
-   * ```typescript
-   * // Listen for chat messages
-   * client.on('add_chat', (message) => {
-   *   const chat = message.payload as ChatPayload;
-   *   console.log(`${chat.displayName}: ${chat.chatContent}`);
-   * });
-   * 
-   * // Listen for room state updates
-   * client.on('room_state', (message) => {
-   *   const state = message.payload as RoomStatePayload;
-   *   console.log(`Room has ${state.participants.length} participants`);
-   * });
-   * 
-   * // Listen for WebRTC offers
-   * client.on('offer', (message) => {
-   *   const offer = message.payload as WebRTCOfferPayload;
-   *   handleWebRTCOffer(offer);
-   * });
-   * ```
-   */
+  /** Subscribe to WebSocket message events */
   on(event: EventType, handler: MessageHandler): void {
     if (!this.messageHandlers.has(event)) {
       this.messageHandlers.set(event, []);
@@ -948,29 +368,7 @@ export class WebSocketClient {
     this.messageHandlers.get(event)!.push(handler);
   }
 
-  /**
-   * Unsubscribe from specific WebSocket message types
-   * 
-   * Removes a previously registered event handler for the specified event type.
-   * Must pass the exact same handler function reference used with `on()`.
-   * 
-   * @param {EventType} event - The event type to stop listening for
-   * @param {MessageHandler} handler - The exact handler function to remove
-   * 
-   * @example
-   * ```typescript
-   * // Store handler reference for later removal
-   * const chatHandler = (message) => {
-   *   console.log('Chat:', message.payload.chatContent);
-   * };
-   * 
-   * // Subscribe
-   * client.on('add_chat', chatHandler);
-   * 
-   * // Later, unsubscribe
-   * client.off('add_chat', chatHandler);
-   * ```
-   */
+  /** Unsubscribe from WebSocket message events */
   off(event: EventType, handler: MessageHandler): void {
     const handlers = this.messageHandlers.get(event);
     if (handlers) {
@@ -981,103 +379,22 @@ export class WebSocketClient {
     }
   }
 
-  /**
-   * Subscribe to connection state changes
-   * 
-   * Registers a handler to be notified when the WebSocket connection
-   * state changes (connecting, connected, disconnected, error, reconnecting).
-   * 
-   * @param {ConnectionHandler} handler - Function to handle state changes
-   * 
-   * @example
-   * ```typescript
-   * client.onConnectionChange((state) => {
-   *   switch (state) {
-   *     case 'connecting':
-   *       showLoadingIndicator();
-   *       break;
-   *     case 'connected':
-   *       hideLoadingIndicator();
-   *       enableUI();
-   *       break;
-   *     case 'disconnected':
-   *     case 'error':
-   *       disableUI();
-   *       showErrorMessage();
-   *       break;
-   *     case 'reconnecting':
-   *       showReconnectingIndicator();
-   *       break;
-   *   }
-   * });
-   * ```
-   */
+  /** Subscribe to connection state changes */
   onConnectionChange(handler: ConnectionHandler): void {
     this.connectionHandlers.push(handler);
   }
 
-  /**
-   * Subscribe to WebSocket and connection errors
-   * 
-   * Registers a handler to be notified when errors occur during
-   * WebSocket communication or connection management.
-   * 
-   * @param {ErrorHandler} handler - Function to handle errors
-   * 
-   * @example
-   * ```typescript
-   * client.onError((error) => {
-   *   console.error('WebSocket error:', error.message);
-   *   
-   *   // Log to error tracking service
-   *   errorTracker.log(error);
-   *   
-   *   // Show user-friendly error message
-   *   showErrorToast('Connection problem. Please try again.');
-   * });
-   * ```
-   */
+  /** Subscribe to WebSocket errors */
   onError(handler: ErrorHandler): void {
     this.errorHandlers.push(handler);
   }
 
-  /**
-   * Get current connection state
-   * 
-   * Returns the current state of the WebSocket connection.
-   * 
-   * @returns {ConnectionState} Current connection state
-   * 
-   * @example
-   * ```typescript
-   * const state = client.getConnectionState();
-   * if (state === 'connected') {
-   *   console.log('Ready to send messages');
-   * } else if (state === 'reconnecting') {
-   *   console.log('Attempting to reconnect...');
-   * }
-   * ```
-   */
+  /** Get current connection state */
   getConnectionState(): ConnectionState {
     return this.connectionState;
   }
 
-  /**
-   * Check if WebSocket is currently connected
-   * 
-   * Returns true if the WebSocket is open and ready to send/receive messages.
-   * 
-   * @returns {boolean} True if connected, false otherwise
-   * 
-   * @example
-   * ```typescript
-   * if (client.isConnected()) {
-   *   client.sendChat('Hello!', clientInfo);
-   * } else {
-   *   console.log('Cannot send message: not connected');
-   * }
-   * ```
-   */
+  /** Check if WebSocket is connected */
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
   }
@@ -1179,89 +496,7 @@ export class WebSocketClient {
   }
 }
 
-/**
- * @fileoverview WebSocket Client Usage Summary
- * 
- * This comprehensive WebSocket client provides enterprise-grade real-time communication
- * for video conferencing applications. Key features include:
- * 
- * **Core Features:**
- * - Type-safe message handling with TypeScript interfaces
- * - Automatic reconnection with exponential backoff
- * - JWT-based authentication
- * - Heartbeat monitoring for connection health
- * - Event-driven architecture with subscribe/unsubscribe patterns
- * - Comprehensive error handling and recovery
- * 
- * **Supported Operations:**
- * - Real-time chat messaging with history
- * - Participant management (join/leave/remove)
- * - Hand raising system for speaking requests
- * - Screen sharing coordination
- * - WebRTC signaling for peer-to-peer connections
- * - Waiting room management for host-controlled admission
- * 
- * **Production Ready:**
- * - Extensive error handling and logging
- * - Connection state management
- * - Resource cleanup and memory leak prevention
- * - Configurable timeouts and retry logic
- * - Full TypeScript type safety
- * 
- * **Example Integration:**
- * ```typescript
- * import { WebSocketClient } from './lib/websockets';
- * 
- * const client = new WebSocketClient({
- *   url: process.env.NEXT_PUBLIC_WS_URL!,
- *   token: authToken,
- *   autoReconnect: true,
- *   maxReconnectAttempts: 10
- * });
- * 
- * // Set up event handlers
- * client.on('add_chat', handleChatMessage);
- * client.on('room_state', handleRoomStateUpdate);
- * client.onConnectionChange(handleConnectionChange);
- * client.onError(handleError);
- * 
- * // Connect and start using
- * await client.connect();
- * ```
- * 
- * @version 1.0.0
- * @author Video Conferencing Platform Team
- * @since 2024
- */
-
-/**
- * Factory function to create WebSocket clients for different endpoints
- * 
- * Provides a convenient way to create pre-configured WebSocket clients
- * for different types of real-time communication endpoints.
- * 
- * @param {('zoom'|'screenshare'|'chat')} endpoint - Type of WebSocket endpoint
- * @param {string} roomId - Unique identifier for the room
- * @param {string} token - JWT authentication token
- * @param {string} [baseUrl='ws://localhost:8080'] - Base WebSocket server URL
- * @returns {WebSocketClient} Configured WebSocket client instance
- * 
- * @example
- * ```typescript
- * // Create client for main video conferencing
- * const zoomClient = createWebSocketClient('zoom', 'room-123', jwtToken);
- * 
- * // Create client for screen sharing
- * const screenClient = createWebSocketClient('screenshare', 'room-123', jwtToken);
- * 
- * // Create client for chat only
- * const chatClient = createWebSocketClient('chat', 'room-123', jwtToken, 'wss://prod.example.com');
- * 
- * // Connect and use
- * await zoomClient.connect();
- * zoomClient.on('room_state', handleRoomState);
- * ```
- */
+/** Factory function to create WebSocket clients */
 export const createWebSocketClient = (
   endpoint: 'zoom' | 'screenshare' | 'chat',
   roomId: string,
@@ -1280,66 +515,12 @@ export const createWebSocketClient = (
   });
 };
 
-/**
- * React hook for managing WebSocket connection in React components
- * 
- * Provides a declarative way to manage WebSocket connections in React applications.
- * Handles connection lifecycle, state management, and cleanup automatically.
- * 
- * @param {('zoom'|'screenshare'|'chat')} endpoint - Type of WebSocket endpoint
- * @param {string} roomId - Unique identifier for the room
- * @param {string} token - JWT authentication token
- * @param {Partial<WebSocketConfig>} [options] - Additional WebSocket configuration
- * @returns {Object} Hook return object with client, state, and control methods
- * 
- * @example
- * ```typescript
- * function VideoRoom({ roomId, authToken }) {
- *   const { client, connectionState, connect, disconnect, isConnected } = useWebSocket(
- *     'zoom',
- *     roomId,
- *     authToken,
- *     { maxReconnectAttempts: 10 }
- *   );
- * 
- *   // Set up event handlers
- *   useEffect(() => {
- *     if (!client) return;
- * 
- *     const handleChat = (message) => {
- *       console.log('New chat:', message.payload.chatContent);
- *     };
- * 
- *     client.on('add_chat', handleChat);
- *     return () => client.off('add_chat', handleChat);
- *   }, [client]);
- * 
- *   // Auto-connect on mount
- *   useEffect(() => {
- *     connect();
- *     return () => disconnect();
- *   }, [connect, disconnect]);
- * 
- *   return (
- *     <div>
- *       <div>Status: {connectionState}</div>
- *       <button 
- *         onClick={() => client?.sendChat('Hello!', clientInfo)}
- *         disabled={!isConnected}
- *       >
- *         Send Message
- *       </button>
- *     </div>
- *   );
- * }
- * ```
- */
+/** React hook for managing WebSocket connection */
 export const useWebSocket = (
   endpoint: 'zoom' | 'screenshare' | 'chat',
   roomId: string,
   token: string,
   options?: Partial<WebSocketConfig>
 ) => {
-  // This will be implemented as a React hook in a separate file
-  // returning { client, connectionState, connect, disconnect, isConnected }
+  // Implementation for React hook
 };
