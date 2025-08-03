@@ -10,6 +10,11 @@ const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(file
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
   plugins: [tsconfigPaths(), react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(dirname, '.')
+    }
+  },
   optimizeDeps: {
     include: ['zustand']
   },
@@ -17,26 +22,55 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
-    projects: [{
-      extends: true,
-      plugins: [
-      // The plugin will run tests for the stories defined in your Storybook config
-      // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
-      storybookTest({
-        configDir: path.join(dirname, '.storybook')
-      })],
-      test: {
-        name: 'storybook',
-        browser: {
-          enabled: true,
-          headless: true,
-          provider: 'playwright',
-          instances: [{
-            browser: 'chromium'
-          }]
+    include: ['__tests__/**/*.test.ts', '__tests__/**/*.test.tsx', 'stories/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
+    exclude: ['node_modules/**/*'],
+    projects: [
+      // Unit tests project
+      {
+        plugins: [tsconfigPaths(), react()],
+        resolve: {
+          alias: {
+            '@': path.resolve(dirname, '.')
+          }
         },
-        setupFiles: ['.storybook/vitest.setup.ts']
+        test: {
+          name: 'unit',
+          environment: 'jsdom',
+          globals: true,
+          setupFiles: ['./vitest.setup.ts'],
+          include: ['__tests__/**/*.test.ts', '__tests__/**/*.test.tsx'],
+          exclude: ['stories/**/*', 'node_modules/**/*']
+        }
+      },
+      // Storybook tests project
+      {
+        plugins: [
+          tsconfigPaths(),
+          react(),
+          // The plugin will run tests for the stories defined in your Storybook config
+          // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
+          storybookTest({
+            configDir: path.join(dirname, '.storybook')
+          })
+        ],
+        resolve: {
+          alias: {
+            '@': path.resolve(dirname, '.')
+          }
+        },
+        test: {
+          name: 'storybook',
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: 'playwright',
+            instances: [{
+              browser: 'chromium'
+            }]
+          },
+          setupFiles: ['.storybook/vitest.setup.ts']
+        }
       }
-    }]
+    ]
   }
 });

@@ -1,0 +1,27 @@
+{
+  "folders": [
+    {
+      "name": "Social-Media",
+      "path": "."
+    },
+    {
+      "name": "Frontend",
+      "path": "./frontend"
+    },
+    {
+      "name": "Backend",
+      "path": "./backend"
+    },
+    {
+      "name": "Devops",
+      "path": "./devops"
+    }
+  ],
+  "settings": {
+    "vitest.workspaceConfig": "./frontend/vitest.config.mts",
+    "testing.automaticallyOpenTestResults": "openOnTestStart",
+    "cSpell.words": [
+      "WEBRTC"
+    ]
+  }
+}
