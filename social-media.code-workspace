@@ -21,6 +21,7 @@
     "vitest.workspaceConfig": "./frontend/vitest.config.mts",
     "testing.automaticallyOpenTestResults": "openOnTestStart",
     "cSpell.words": [
+      "autodocs",
       "WEBRTC"
     ]
   }
