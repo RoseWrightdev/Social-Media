@@ -1,26 +1,24 @@
 import React, { useRef, useState, useEffect } from "react";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import * as Typo from "@/components/ui/typography";
-
 import { type ChatMessage } from "@/store/useRoomStore";
+
 
 export default function ChatMessage({
   chatMessage,
   currentUserId,
+  isHost,
 }: {
   chatMessage: ChatMessage;
   currentUserId: string;
+  isHost: boolean;
 }) {
   if (chatMessage.type === "private") {
     return (
-      <div className="bg-blue-100 rounded-md p-3 mb-2">
-        <strong>{chatMessage.username} (private):</strong>{" "}
-        <RenderMessageContent chatMessage={chatMessage.content} />
-      </div>
+       <StandardChat chatMessage={chatMessage} currentUserId={currentUserId} isPriv={true} isHost={isHost} />
     );
   } else if (chatMessage.type === "system") {
-    // You can customize system message rendering here
     return (
       <div className="bg-gray-100 rounded-md p-3 mb-2 text-center text-sm text-gray-600">
         {chatMessage.content}
@@ -28,17 +26,16 @@ export default function ChatMessage({
     );
   } else if (chatMessage.type === "text") {
     return (
-      <StandardChat chatMessage={chatMessage} currentUserId={currentUserId} />
+      <StandardChat chatMessage={chatMessage} currentUserId={currentUserId} isPriv={false} isHost={isHost} />
     );
   }
 
   return null;
 }
 
-function StandardChat({ chatMessage, currentUserId }: { chatMessage: ChatMessage, currentUserId: string }) {
+function StandardChat({ chatMessage, currentUserId, isPriv, isHost }: { chatMessage: ChatMessage, currentUserId: string, isPriv: boolean, isHost: boolean }) {
   const messageContentRef = useRef<HTMLParagraphElement>(null);
   const [isHovered, setIsHovered] = useState(false);
-
   const handleMouseEnter = () => setIsHovered(true);
   const handleMouseLeave = () => {
     setIsHovered(false);
@@ -52,8 +49,10 @@ function StandardChat({ chatMessage, currentUserId }: { chatMessage: ChatMessage
   return (
     <div
       className={`flex items-start gap-4 p-3 mb-4 ${isCurrentUser ? "flex-row-reverse" : ""}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      <Avatar className="w-11 h-11">
+      <Avatar className="w-11 h-11 flex-shrink-0">
         <AvatarImage
           src={`https://api.dicebear.com/5.x/initials/svg?seed=${chatMessage.username}`}
         />
@@ -61,23 +60,19 @@ function StandardChat({ chatMessage, currentUserId }: { chatMessage: ChatMessage
           {chatMessage.username.charAt(0)}
         </AvatarFallback>
       </Avatar>
-      <div className="flex flex-col justify-center w-full">
-        <div
-          className={`flex items-center gap-3 mt-2 ${isCurrentUser ? "flex-row-reverse" : ""}`}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
+      <div className={`flex flex-col justify-center w-full ${isCurrentUser ? "items-end" : "items-start"}`}>
+        <div className={`flex items-center gap-3 mt-2 ${isCurrentUser ? "flex-row-reverse" : ""}`}>
           <Typo.H4 className="my-0">{chatMessage.username}</Typo.H4>
-          {isHovered && (
-            <Typo.Muted className="mt-1">
-              {chatMessage.timestamp.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Typo.Muted>
-          )}
+          {isHost && <Badge variant="outline">Host</Badge>}
+          {isPriv && <Badge variant="outline">Private</Badge>}
+          <Typo.Muted className={`mt-1 transition-opacity duration-200 ${isHovered ? "opacity-100" : "opacity-0"}`}>
+            {chatMessage.timestamp.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Typo.Muted>
         </div>
-        <div className={`mt-1 ${isCurrentUser ? "text-right" : ""}`}>
+        <div className={`mt-1 ${isCurrentUser ? "text-right" : "text-left"} max-w-full`}>
           <RenderMessageContent
             chatMessage={chatMessage.content}
             forwardedRef={messageContentRef}
@@ -101,16 +96,25 @@ function RenderMessageContent({
   const internalRef = useRef<HTMLParagraphElement>(null);
   const ref = forwardedRef ?? internalRef;
   const [showGradient, setShowGradient] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // Show gradient only if content overflows and not scrolled to bottom
+    
     const checkOverflow = () => {
-      const isOverflowing = el.scrollHeight > el.clientHeight;
       const isScrolledToBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-      setShowGradient(isOverflowing && !isScrolledToBottom);
+      
+      // Check if natural content height exceeds the max-h-20 (80px) constraint by a significant margin
+      // We use scrollHeight which gives us the natural height of the content
+      const maxHeightInPx = 80; // max-h-20 = 5rem = 80px
+      const contentExceedsLimit = el.scrollHeight > maxHeightInPx + 30; // Increased buffer to avoid flicker
+      
+      // Update overflow state to prevent switching between overflow modes
+      setHasOverflow(contentExceedsLimit);
+      setShowGradient(contentExceedsLimit && !isScrolledToBottom && !isHovered);
     };
+    
     checkOverflow();
     el.addEventListener("scroll", checkOverflow);
     window.addEventListener("resize", checkOverflow);
@@ -118,18 +122,72 @@ function RenderMessageContent({
       el.removeEventListener("scroll", checkOverflow);
       window.removeEventListener("resize", checkOverflow);
     };
-  }, [chatMessage, ref]);
+  }, [chatMessage, ref, isHovered]);
 
   const gradient =
     "linear-gradient(to bottom, rgba(0,0,0,1) 70%, rgba(0,0,0,0) 100%)";
 
+  // Parse message content for links, emails, and mentions
+  const renderMessageWithLinks = (text: string) => {
+    // Regex patterns for URLs, emails, and mentions
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+    const mentionRegex = /(@everyone|@[a-zA-Z0-9._-]+)/g;
+    
+    // Split text by URLs, emails, and mentions while keeping the matches
+    const parts = text.split(/(\s+|https?:\/\/[^\s]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|@everyone|@[a-zA-Z0-9._-]+)/g);
+    
+    return parts.map((part, index) => {
+      if (urlRegex.test(part)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-700 underline break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      } else if (emailRegex.test(part)) {
+        return (
+          <a
+            key={index}
+            href={`mailto:${part}`}
+            className="text-blue-500 hover:text-blue-700 underline break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      } else if (mentionRegex.test(part)) {
+        return (
+          <Badge
+            key={index}
+            variant={part === "@everyone" ? "secondary" : "outline"}
+            className="text-xs px-1.5 py-0.5 mx-0.5 inline-flex"
+          >
+            {part}
+          </Badge>
+        );
+      } else {
+        return part;
+      }
+    });
+  };
+
   return (
     <Typo.P
       ref={ref}
-      className={`font-medium mt-0 relative scrollbar-hide transition-all duration-100 ${isHovered ? "max-h-32 overflow-y-auto" : "max-h-20 overflow-y-hidden"
-        }`}
-      style={
-        showGradient && !isHovered
+      className={`font-medium mt-0 relative transition-all duration-100 ${hasOverflow ? "overflow-y-auto" : "overflow-y-hidden"} max-h-20`}
+      style={{
+        ...(hasOverflow ? {
+          scrollbarWidth: "thin",
+          scrollbarColor: isHovered ? "rgba(156, 163, 175, 0.7) transparent" : "transparent transparent",
+        } : {}),
+        ...((showGradient && !isHovered)
           ? {
             WebkitMaskImage: gradient,
             maskImage: gradient,
@@ -138,10 +196,10 @@ function RenderMessageContent({
             WebkitMaskSize: "100% 100%",
             maskSize: "100% 100%",
           }
-          : { scrollbarColor: "transparent"}
-      }
+          : {})
+      }}
     >
-      {chatMessage}
+      {renderMessageWithLinks(chatMessage)}
     </Typo.P>
   );
 };
