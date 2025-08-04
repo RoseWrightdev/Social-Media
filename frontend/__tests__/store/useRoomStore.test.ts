@@ -14,7 +14,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { useRoomStore, type Participant, type ChatMessage, type RoomSettings, type ConnectionState } from '../../store/useRoomStore';
+import { useRoomStore, type Participant, type ChatMessage, type RoomSettings, type ConnectionState } from '../../hooks/useRoomStore';
 import { WebSocketClient } from '../../lib/websockets';
 import { WebRTCManager } from '../../lib/webrtc';
 

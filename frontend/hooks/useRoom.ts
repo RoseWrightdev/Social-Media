@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { useRoomStore } from '@/store/useRoomStore';
+import { useRoomStore } from '@/hooks/useRoomStore';
 
 /**
  * Room management hooks for video conferencing
@@ -215,11 +215,11 @@ export const useChat = () => {
     toggleChatPanel,
   } = useRoomStore();
 
-  const sendTextMessage = useCallback((content: string) => {
+  const sendChat = useCallback((content: string) => {
     sendMessage(content, 'text');
   }, [sendMessage]);
 
-  const sendPrivateMessage = useCallback((content: string, targetId: string) => {
+  const sendPrivateChat = useCallback((content: string, targetId: string) => {
     sendMessage(content, 'private', targetId);
   }, [sendMessage]);
 
@@ -241,8 +241,8 @@ export const useChat = () => {
     unreadCount,
     isChatPanelOpen,
     hasUnreadMessages: unreadCount > 0,
-    sendTextMessage,
-    sendPrivateMessage,
+    sendChat,
+    sendPrivateChat,
     openChat,
     closeChat,
     markMessagesRead,

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { useRoomStore } from '@/store/useRoomStore'
+import { useRoomStore } from '@/hooks/useRoomStore'
 import { WebSocketClient } from '@/lib/websockets'
 
 // Enhanced Mock WebSocket implementation for testing

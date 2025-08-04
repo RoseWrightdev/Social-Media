@@ -3,20 +3,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import * as Typo from "@/components/ui/typography";
 import { type ChatMessage } from "@/store/useRoomStore";
+import { ChatDependencies } from "../types/ChatDependencies";
 
+export interface ChatMessageProps {
+  chatMessage: ChatMessage;
+  currentUserId: string;
+  isHost: boolean;
+  dependencies: ChatDependencies;
+}
 
 export default function ChatMessage({
   chatMessage,
   currentUserId,
   isHost,
-}: {
-  chatMessage: ChatMessage;
-  currentUserId: string;
-  isHost: boolean;
-}) {
+  dependencies,
+}: ChatMessageProps) {
   if (chatMessage.type === "private") {
     return (
-       <StandardChat chatMessage={chatMessage} currentUserId={currentUserId} isPriv={true} isHost={isHost} />
+      <StandardChat chatMessage={chatMessage} currentUserId={currentUserId} isPriv={true} isHost={isHost} dependencies={dependencies} />
     );
   } else if (chatMessage.type === "system") {
     return (
@@ -26,14 +30,14 @@ export default function ChatMessage({
     );
   } else if (chatMessage.type === "text") {
     return (
-      <StandardChat chatMessage={chatMessage} currentUserId={currentUserId} isPriv={false} isHost={isHost} />
+      <StandardChat chatMessage={chatMessage} currentUserId={currentUserId} isPriv={false} isHost={isHost} dependencies={dependencies} />
     );
   }
 
   return null;
 }
 
-function StandardChat({ chatMessage, currentUserId, isPriv, isHost }: { chatMessage: ChatMessage, currentUserId: string, isPriv: boolean, isHost: boolean }) {
+function StandardChat({ chatMessage, currentUserId, isPriv, isHost, dependencies }: { chatMessage: ChatMessage, currentUserId: string, isPriv: boolean, isHost: boolean, dependencies: ChatDependencies }) {
   const messageContentRef = useRef<HTMLParagraphElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const handleMouseEnter = () => setIsHovered(true);
@@ -43,7 +47,7 @@ function StandardChat({ chatMessage, currentUserId, isPriv, isHost }: { chatMess
       messageContentRef.current.scrollTop = 0;
     }
   };
-
+  const badgeStyle = "text-[14px] text-medium"
   const isCurrentUser = chatMessage.participantId === currentUserId;
 
   return (
@@ -63,8 +67,8 @@ function StandardChat({ chatMessage, currentUserId, isPriv, isHost }: { chatMess
       <div className={`flex flex-col justify-center w-full ${isCurrentUser ? "items-end" : "items-start"}`}>
         <div className={`flex items-center gap-3 mt-2 ${isCurrentUser ? "flex-row-reverse" : ""}`}>
           <Typo.H4 className="my-0">{chatMessage.username}</Typo.H4>
-          {isHost && <Badge variant="outline">Host</Badge>}
-          {isPriv && <Badge variant="outline">Private</Badge>}
+          {isHost && <Badge variant="outline" className={badgeStyle}>Host</Badge>}
+          {isPriv && <Badge variant="outline" className={badgeStyle}>Private</Badge>}
           <Typo.Muted className={`mt-1 transition-opacity duration-200 ${isHovered ? "opacity-100" : "opacity-0"}`}>
             {chatMessage.timestamp.toLocaleTimeString([], {
               hour: "2-digit",
@@ -101,20 +105,20 @@ function RenderMessageContent({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    
+
     const checkOverflow = () => {
       const isScrolledToBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-      
-      // Check if natural content height exceeds the max-h-20 (80px) constraint by a significant margin
+
+      // Check if natural content height exceeds the max-h-32 (128px) constraint by a significant margin
       // We use scrollHeight which gives us the natural height of the content
-      const maxHeightInPx = 80; // max-h-20 = 5rem = 80px
+      const maxHeightInPx = 128; // max-h-32 = 8rem = 128px
       const contentExceedsLimit = el.scrollHeight > maxHeightInPx + 30; // Increased buffer to avoid flicker
-      
+
       // Update overflow state to prevent switching between overflow modes
       setHasOverflow(contentExceedsLimit);
       setShowGradient(contentExceedsLimit && !isScrolledToBottom && !isHovered);
     };
-    
+
     checkOverflow();
     el.addEventListener("scroll", checkOverflow);
     window.addEventListener("resize", checkOverflow);
@@ -133,10 +137,10 @@ function RenderMessageContent({
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
     const mentionRegex = /(@everyone|@[a-zA-Z0-9._-]+)/g;
-    
+
     // Split text by URLs, emails, and mentions while keeping the matches
     const parts = text.split(/(\s+|https?:\/\/[^\s]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|@everyone|@[a-zA-Z0-9._-]+)/g);
-    
+
     return parts.map((part, index) => {
       if (urlRegex.test(part)) {
         return (
@@ -181,7 +185,7 @@ function RenderMessageContent({
   return (
     <Typo.P
       ref={ref}
-      className={`font-medium mt-0 relative transition-all duration-100 ${hasOverflow ? "overflow-y-auto" : "overflow-y-hidden"} max-h-20`}
+      className={`font-medium mt-0 relative transition-all duration-100 ${hasOverflow ? "overflow-y-auto" : "overflow-y-hidden"} max-h-32`}
       style={{
         ...(hasOverflow ? {
           scrollbarWidth: "thin",

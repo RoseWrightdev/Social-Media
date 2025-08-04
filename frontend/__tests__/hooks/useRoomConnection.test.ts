@@ -102,7 +102,7 @@ vi.mock('@/store/useRoomStore', () => ({
 }))
 
 // Import the mocked function
-import { useRoomStore } from '@/store/useRoomStore'
+import { useRoomStore } from '@/hooks/useRoomStore'
 const mockedUseRoomStore = vi.mocked(useRoomStore)
 
 // Mock timers

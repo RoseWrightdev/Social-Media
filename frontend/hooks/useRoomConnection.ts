@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useRoomStore } from '@/store/useRoomStore';
+import { useRoomStore } from '@/hooks/useRoomStore';
 
 interface ConnectionState {
   status: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed';

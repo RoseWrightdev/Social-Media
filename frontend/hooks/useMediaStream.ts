@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRoomStore } from '@/store/useRoomStore';
+import { useRoomStore } from '@/hooks/useRoomStore';
 
 /**
  * Media stream management hook for video conferencing

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useRoomStore } from '@/store/useRoomStore'
+import { useRoomStore } from '@/hooks/useRoomStore'
 
 describe('Backend Connection Security', () => {
   beforeEach(() => {
