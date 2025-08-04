@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import * as Typo from "@/components/ui/typography";
 
 import { type ChatMessage } from "@/store/useRoomStore";
+
 export default function ChatMessage({
   chatMessage,
   currentUserId,
@@ -62,7 +63,7 @@ function StandardChat({ chatMessage, currentUserId }: { chatMessage: ChatMessage
       </Avatar>
       <div className="flex flex-col justify-center w-full">
         <div
-          className={`flex items-center gap-3 mt-2 ${isCurrentUser ? "flex-row-reverse text-right" : ""}`}
+          className={`flex items-center gap-3 mt-2 ${isCurrentUser ? "flex-row-reverse" : ""}`}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -143,4 +144,4 @@ function RenderMessageContent({
       {chatMessage}
     </Typo.P>
   );
-}
+};
