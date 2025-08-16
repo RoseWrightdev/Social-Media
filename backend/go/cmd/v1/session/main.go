@@ -85,9 +85,7 @@ func main() {
 		validator = &MockValidator{}
 	}
 
-	zoomCallHub := session.NewHub(validator)
-	screenShareHub := session.NewHub(validator)
-	chatHub := session.NewHub(validator)
+	hub := session.NewHub(validator)
 
 	// --- Set up Server ---
 	router := gin.Default()
@@ -103,9 +101,7 @@ func main() {
 	// Routing
 	wsGroup := router.Group("/ws")
 	{
-		wsGroup.GET("/zoom/:roomId", zoomCallHub.ServeWs)
-		wsGroup.GET("/screenshare/:roomId", screenShareHub.ServeWs)
-		wsGroup.GET("/chat/:roomId", chatHub.ServeWs)
+		wsGroup.GET("/hub/:roomId", hub.ServeWs)
 	}
 
 	// Start the server.
