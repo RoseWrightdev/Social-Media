@@ -498,12 +498,11 @@ export class WebSocketClient {
 
 /** Factory function to create WebSocket clients */
 export const createWebSocketClient = (
-  endpoint: 'zoom' | 'screenshare' | 'chat',
   roomId: string,
   token: string,
   baseUrl = 'ws://localhost:8080'
 ): WebSocketClient => {
-  const url = `${baseUrl}/ws/${endpoint}/${roomId}`;
+  const url = `${baseUrl}/hub/${roomId}`;
   
   return new WebSocketClient({
     url,
@@ -513,14 +512,4 @@ export const createWebSocketClient = (
     maxReconnectAttempts: 5,
     heartbeatInterval: 30000,
   });
-};
-
-/** React hook for managing WebSocket connection */
-export const useWebSocket = (
-  endpoint: 'zoom' | 'screenshare' | 'chat',
-  roomId: string,
-  token: string,
-  options?: Partial<WebSocketConfig>
-) => {
-  // Implementation for React hook
 };
