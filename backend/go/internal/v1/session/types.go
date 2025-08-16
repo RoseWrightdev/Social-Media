@@ -123,9 +123,6 @@ type AcceptWaitingPayload = ClientInfo  // Payload for admitting a waiting clien
 type DenyWaitingPayload = ClientInfo    // Payload for denying a waiting client
 type RequestWaitingPayload = ClientInfo // Payload for requesting room admission
 
-// Legacy typo - kept for backward compatibility
-type AccceptWaitingPayload = ClientInfo
-
 // Connection lifecycle payloads
 type ParticipantJoinedPayload = ClientInfo // Broadcast when someone joins
 type ParticipantLeftPayload = ClientInfo   // Broadcast when someone leaves
