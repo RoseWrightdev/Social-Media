@@ -1,6 +1,6 @@
 # Video Conferencing Platform
 
-Production-ready video conferencing with Go and Next.js.
+Video conferencing with Go and Next.js.
 
 ## Features
 
